@@ -1,0 +1,17 @@
+# Python venv
+.venv/
+
+# Playwright / Chrome profile
+chrome-profile/
+tiktok_profile.json
+
+# Output JSON
+video.json
+tiktok_profile.json
+
+# Bytecode
+__pycache__/
+
+# IDE
+.vscode/
+.idea/
