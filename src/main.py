@@ -8,6 +8,14 @@ from parsers.video_parser import TiktokPost
 from api import postToESUnclassified
 from utils import delay
 
+
+from logging_config import setup_logging
+import logging
+setup_logging()
+logger = logging.getLogger(__name__)
+
+
+
 async def extract_video_info(page):
     raw = await page.locator("#__UNIVERSAL_DATA_FOR_REHYDRATION__").inner_text()
     data = json.loads(raw)
@@ -72,7 +80,10 @@ async def run():
         page = await context.new_page()
         await delay(2000, 4000)
 
-        keywords = ["Tập Đoàn T&T"]
+        with open("keywords.json", "r", encoding="utf8") as f:
+            keywords = json.load(f)
+
+        logger.info(keywords)
 
         for keyword in keywords:
             unix_time = int(time.time())
@@ -124,12 +135,12 @@ async def run():
                 await delay(2000, 5000)
                 await new_page.close()
 
-            # Send kafka
-            # with open("data.json", "w", encoding="utf-8") as f:
-            #     json.dump(data, f, ensure_ascii=False, indent=4)
             await delay(2000, 5000)
             result = await postToESUnclassified(data)
-            print(result)
+            if not result["success"]:
+                print("❌ Lỗi khi đẩy dữ liệu:", result["error"])
+            else:
+                print("✅ Thành công:", result["total"])
 
 async def schedule():
     while True:
@@ -140,7 +151,7 @@ async def schedule():
         except Exception as e:
             print("Lỗi trong run():", e)
 
-        await asyncio.sleep(5 * 60)   # 15 phút
+        await asyncio.sleep(30 * 60)   # 15 phút
 if __name__ == "__main__":
     asyncio.run(schedule())
 

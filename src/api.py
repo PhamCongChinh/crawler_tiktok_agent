@@ -13,12 +13,26 @@ async def postToESUnclassified(content: any) -> any:
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(URL_UNCLASSIFIED, json=data)
-            print(f"Đã đẩy {total}")
-            print(response)
-        
-    except httpx.HTTPStatusError as e:
-        print(f"[ERROR] Insert failed: {e.response.status_code} - {e.response.text}")
-        return {"successes": 0, "errors": [{"error": str(e)}]}
+            if response.status_code >= 400:
+                return {
+                    "success": False,
+                    "total": total,
+                    "status": response.status_code,
+                    "error": response.text,
+                    "response": None
+                }
+            return {
+                "success": True,
+                "total": total,
+                "status": response.status_code,
+                "error": None,
+                "response": response.json()
+            }
     except Exception as e:
-        print(f"[ERROR] Insert exception: {e}")
-        return {"successes": 0, "errors": [{"error": str(e)}]}
+        return {
+            "success": False,
+            "total": total,
+            "status": None,
+            "error": str(e),
+            "response": None
+        }
