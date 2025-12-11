@@ -7,6 +7,7 @@ import json
 from datetime import datetime
 
 from parsers.video_parser import TiktokPost
+from api import postToESUnclassified
 
 
 
@@ -95,7 +96,6 @@ async def run():
     async with async_playwright() as p:
         chrome_path = "C:/Program Files/Google/Chrome/Application/chrome.exe"  # đường dẫn Chrome trên Windows
 
-        # Khởi tạo trình duyệt Chromium
         browser = await p.chromium.launch(
             headless=False,
             executable_path=chrome_path,
@@ -118,12 +118,8 @@ async def run():
             timeout=60000
         )
 
-        # Chờ danh sách xuất hiện
         await page.wait_for_selector("#search_top-item-list")
        
-        # await page.wait_for_selector("#search_top-item-list")
-        # items = await page.query_selector_all("#search_top-item-list [id^='grid-item-container-']")
-        # print("Tìm thấy:", len(items))
         locator = page.locator("#search_top-item-list [id^='grid-item-container-']")
         count = await locator.count()
 
@@ -148,60 +144,11 @@ async def run():
             await new_page.wait_for_timeout(3000)
             await new_page.close()
 
-        with open("data.json", "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=4)
-
-        # first = items[0]   # video đầu tiên
-
-        # await page.wait_for_timeout(3000)
-        # # Click mở video
-        # await first.click(force=True)
-
-        # # Chờ trang video load xong
-        # await page.wait_for_load_state("domcontentloaded")
-        # print("Đã mở video:", page.url)
-
-
-        # await page.wait_for_timeout(3000)
-        # await page.reload()
-
-        # await page.evaluate("""
-        #     const vid = document.querySelector('video');
-        #     if (vid) { vid.muted = false; vid.play(); }
-        # """)
-        # await page.wait_for_timeout(5000)
-
-        # # Click nút Next video
-        # # await page.click('button[data-e2e="arrow-right"]', force=True)
-
-        # # print("Đã click next video:", page.url)
-
-        # # for i in range(5):
-        # #     print(f"Click lần {i+1}")
-        # #     await page.click('button[data-e2e="arrow-right"]')
-        # #     await asyncio.sleep(5)  # đợi video chuyển
-
-        # # desc_locator = page.locator('div[data-e2e="browse-video-desc"]')
-        # # text = await desc_locator.inner_text()
-        # # print(text)
-
-        
-        # video_info = await extract_video_info(page)
-
-        # data = []
-        # item = TiktokPost().new(video_info)
-        # with open("item.json", "w", encoding="utf-8") as f:
-        #     json.dump(item, f, ensure_ascii=False, indent=4)
-
-        # data.append(item)
-
-        # await page.wait_for_timeout(5000)
-
-
-        # with open("item.json", "w", encoding="utf-8") as f:
-        #     json.dump(item, f, ensure_ascii=False, indent=4)
-        # await page.wait_for_timeout(10000000)
-        # await browser.close()
+        # Send kafka
+        # with open("data.json", "w", encoding="utf-8") as f:
+        #     json.dump(data, f, ensure_ascii=False, indent=4)
+        result = await postToESUnclassified(data)
+        print(result)
 
 asyncio.run(run())
 
