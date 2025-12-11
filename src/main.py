@@ -9,50 +9,10 @@ from datetime import datetime
 from parsers.video_parser import TiktokPost
 from api import postToESUnclassified
 
-
-
-
-
-
 async def extract_video_info(page):
-    # data = {}
-
-    # data["url"] = page.url
-
-    # # Description
-    # desc_locator = page.locator('div[data-e2e="browse-video-desc"]')
-    # text = await desc_locator.inner_text()
-    # data["content"] = text
-
-
-    # # --- LIKE / COMMENT / SHARE ---
-    # def safe_int(x):
-    #     if not x:
-    #         return 0
-    #     x = x.lower().replace("k", "000").replace("m", "000000")
-    #     return int("".join([c for c in x if c.isdigit()]))
-    # try:
-    #     likes = await page.locator('[data-e2e="browse-like-count"]').inner_text()
-    #     comments = await page.locator('[data-e2e="browse-comment-count"]').inner_text()
-    #     # shares = await page.locator('[data-e2e="share-count"]').inner_text()
-
-    #     data["likes"] = safe_int(likes)
-    #     data["comments"] = safe_int(comments)
-    #     # data["shares"] = safe_int(shares)
-    # except:
-    #     data["likes"] = data["comments"] = 0
-
-    
-
     raw = await page.locator("#__UNIVERSAL_DATA_FOR_REHYDRATION__").inner_text()
     data = json.loads(raw)
-
-    # đi vào structure
     root = data["__DEFAULT_SCOPE__"]["webapp.video-detail"]["itemInfo"]["itemStruct"]
-
-    publish_timestamp = int(root["createTime"])
-    publish_datetime = datetime.fromtimestamp(publish_timestamp)
-
     return {
         "pub_time": int(root["createTime"]),
         "description": root["desc"],
@@ -65,26 +25,7 @@ async def extract_video_info(page):
         "views": root["stats"]["playCount"],
         "auth_id": root["author"]["id"],
         "auth_name": root["author"]["nickname"],
-
-        
-        # "hashtags": [x["hashtagName"] for x in root.get("textExtra", []) if x.get("hashtagName")],
-        # "author_username": root["author"]["uniqueId"],
-        # "author_nickname": root["author"]["nickname"],
-
-        # "subject_id": root["author"]["nickname"],
-        # # stats
-        # "likes": root["stats"]["diggCount"],
-        # "comments": root["stats"]["commentCount"],
-        # "shares": root["stats"]["shareCount"],
-        # "views": root["stats"]["playCount"],
-
-        # # video URL (watermarked)
-        # "download_addr": root["video"]["downloadAddr"],
-        # # video URL (no watermark)
-        # "play_addr": root["video"]["playAddr"],
     }
-
-    return root
 
 
 async def scroll_tiktok(page):
@@ -104,51 +45,117 @@ async def run():
         context = await browser.new_context(storage_state="tiktok_profile.json")
         page = await context.new_page()
         await page.wait_for_timeout(3000)
-        keyword = 'Đỗ Mỹ Linh'
-        unix_time = int(time.time())
-        print(unix_time)
 
-        encoded = urllib.parse.quote(keyword)
-        print(encoded)
+        keywords = [
+            "Đỗ Mỹ Linh",
+            "Bầu Hiển",
+            "Tập đoàn T&T",
+            "Chủ tịch Hà Nội FC",
+            "CLB Hà Nội","T&T"
+        ]
 
-        # Mở Google
-        await page.goto(
-            f"https://www.tiktok.com/search?q={encoded}&t={unix_time}",
-            wait_until="domcontentloaded",
-            timeout=60000
-        )
+        for keyword in keywords:
+            unix_time = int(time.time())
+            encoded = urllib.parse.quote(keyword)
+            url = f"https://www.tiktok.com/search?q={encoded}&t={unix_time}"
 
-        await page.wait_for_selector("#search_top-item-list")
+            # Mở Google
+            await page.goto(
+                url,
+                wait_until="domcontentloaded",
+                timeout=60000
+            )
+
+            await page.wait_for_selector("#search_top-item-list")
        
-        locator = page.locator("#search_top-item-list [id^='grid-item-container-']")
-        count = await locator.count()
+            locator = page.locator("#search_top-item-list [id^='grid-item-container-']")
+            count = await locator.count()
 
-        data = []
+            data = []
+            
+            for i in range(5):
+                print("Item:", i)
+                item = locator.nth(i)
+                video_url = await item.locator("a[href*='/video/']").get_attribute("href")
+                print("Link video:", video_url)
+
+                new_page = await context.new_page()
+                await new_page.goto(video_url)
+                await new_page.wait_for_load_state("domcontentloaded")
+            
+                await new_page.wait_for_timeout(3000)
+
+                video_info = await extract_video_info(new_page)
+                item = TiktokPost().new(video_info)
+                data.append(item)
+
+                await new_page.wait_for_timeout(3000)
+                await new_page.close()
+
+            # Send kafka
+            # with open("data.json", "w", encoding="utf-8") as f:
+            #     json.dump(data, f, ensure_ascii=False, indent=4)
+            result = await postToESUnclassified(data)
+            print(result)
+
+
+
+
+
+        # keyword = 'Đỗ Mỹ Linh'
+
+        # unix_time = int(time.time())
+        # encoded = urllib.parse.quote(keyword)
+
+        # # Mở Google
+        # await page.goto(
+        #     f"https://www.tiktok.com/search?q={encoded}&t={unix_time}",
+        #     wait_until="domcontentloaded",
+        #     timeout=60000
+        # )
+
+        # await page.wait_for_selector("#search_top-item-list")
+       
+        # locator = page.locator("#search_top-item-list [id^='grid-item-container-']")
+        # count = await locator.count()
+
+        # data = []
         
-        for i in range(10):
-            print("Item:", i)
-            item = locator.nth(i)
-            video_url = await item.locator("a[href*='/video/']").get_attribute("href")
-            print("Link video:", video_url)
+        # for i in range(5):
+        #     print("Item:", i)
+        #     item = locator.nth(i)
+        #     video_url = await item.locator("a[href*='/video/']").get_attribute("href")
+        #     print("Link video:", video_url)
 
-            new_page = await context.new_page()
-            await new_page.goto(video_url)
-            await new_page.wait_for_load_state("domcontentloaded")
+        #     new_page = await context.new_page()
+        #     await new_page.goto(video_url)
+        #     await new_page.wait_for_load_state("domcontentloaded")
         
-            await new_page.wait_for_timeout(3000)
+        #     await new_page.wait_for_timeout(3000)
 
-            video_info = await extract_video_info(new_page)
-            item = TiktokPost().new(video_info)
-            data.append(item)
+        #     video_info = await extract_video_info(new_page)
+        #     item = TiktokPost().new(video_info)
+        #     data.append(item)
 
-            await new_page.wait_for_timeout(3000)
-            await new_page.close()
+        #     await new_page.wait_for_timeout(3000)
+        #     await new_page.close()
 
-        # Send kafka
-        # with open("data.json", "w", encoding="utf-8") as f:
-        #     json.dump(data, f, ensure_ascii=False, indent=4)
-        result = await postToESUnclassified(data)
-        print(result)
+        # # Send kafka
+        # # with open("data.json", "w", encoding="utf-8") as f:
+        # #     json.dump(data, f, ensure_ascii=False, indent=4)
+        # result = await postToESUnclassified(data)
+        # print(result)
 
-asyncio.run(run())
+async def schedule():
+    while True:
+        try:
+            print("=== Bắt đầu chạy run() ===")
+            await run()
+            print("=== Hoàn thành, ngủ 15 phút ===")
+        except Exception as e:
+            print("Lỗi trong run():", e)
+
+        await asyncio.sleep(30 * 60)   # 15 phút
+if __name__ == "__main__":
+    asyncio.run(schedule())
 
