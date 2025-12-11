@@ -64,10 +64,15 @@ async def run():
             args=["--disable-blink-features=AutomationControlled"]
         )
         context = await browser.new_context(storage_state="tiktok_profile.json")
+        await context.route("**/*", lambda route, request: (
+            route.abort() 
+            if request.resource_type in ["image", "media", "font", "stylesheet"] 
+            else route.continue_()
+        ))
         page = await context.new_page()
         await delay(2000, 4000)
 
-        keywords = ["Đỗ Linh"]
+        keywords = ["Tập Đoàn T&T"]
 
         for keyword in keywords:
             unix_time = int(time.time())
