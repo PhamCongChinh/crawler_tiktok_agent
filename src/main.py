@@ -86,70 +86,90 @@ async def run():
         logger.info(keywords)
 
         for keyword in keywords:
-            unix_time = int(time.time())
-            encoded = urllib.parse.quote(keyword)
-            url = f"https://www.tiktok.com/search?q={encoded}&t={unix_time}"
+            try:
+                unix_time = int(time.time())
+                encoded = urllib.parse.quote(keyword)
+                url = f"https://www.tiktok.com/search?q={encoded}&t={unix_time}"
 
-            await page.goto(
-                url,
-                wait_until="domcontentloaded",
-                timeout=60000
-            )
-            await delay(2000, 5000)
+                await page.goto(
+                    url,
+                    wait_until="domcontentloaded",
+                    timeout=60000
+                )
+                await delay(2000, 5000)
 
-            error_box = page.locator("h2[data-e2e='search-error-title']")
+                try:
+                    error_box = page.locator("h2[data-e2e='search-error-title']")
 
-            if await error_box.is_visible():
-                print("Error hiển thị: Something went wrong")
-                btn = page.locator("button:has-text('Try again')")
-                if await btn.is_visible():
-                    print("Try again visible → click")
-                    await btn.click()
-                    await asyncio.sleep(2)
+                    if await error_box.is_visible():
+                        logger.info("Error hiển thị: Something went wrong")
+                        btn = page.locator("button:has-text('Try again')")
+                        if await btn.is_visible():
+                            logger.info("Try again visible → click")
+                            await btn.click()
+                            await asyncio.sleep(2)
+                except Exception as e:
+                    logger.error(f"Lỗi khi xử lý error box: {e}")
 
 
-            await page.wait_for_selector("#search_top-item-list", timeout=60000)
+                await page.wait_for_selector("#search_top-item-list", timeout=60000)
        
-            locator = page.locator("#search_top-item-list [id^='grid-item-container-']")
-            count = await locator.count()
+                locator = page.locator("#search_top-item-list [id^='grid-item-container-']")
+                count = await locator.count()
 
-            data = []
+                data = []
             
-            for i in range(5):
-                print("Item:", i)
-                item = locator.nth(i)
-                video_url = await item.locator("a[href*='/video/']").get_attribute("href")
-                print("Link video:", video_url)
+                for i in range(min(5, count)):
+                    try:
+                        logger.info(f"Item: {i}")
+                        item = locator.nth(i)
+                        video_url = await item.locator("a[href*='/video/']").get_attribute("href")
+                        logger.info(f"Link video: {video_url}")
 
-                await delay(1000, 3000)
-                new_page = await context.new_page()
-                await new_page.goto(video_url)
-                await new_page.wait_for_load_state("domcontentloaded")
-            
+                        await delay(1000, 3000)
+                        new_page = await context.new_page()
+                        await new_page.goto(video_url)
+                        await new_page.wait_for_load_state("domcontentloaded")
+                    
+                        await delay(2000, 5000)
+
+                        video_info = await extract_video_info(new_page)
+                        item = TiktokPost().new(video_info)
+                        data.append(item)
+                    except Exception as e:
+                        logger.error(f"Lỗi khi crawl video item {i}: {e}")
+                    finally:
+                        await delay(2000, 5000)
+                        try:
+                            await new_page.close()
+                        except:
+                            pass
+
+                await delay(2000, 5000)
+                try:
+                    result = await postToESUnclassified(data)
+                    if not result["success"]:
+                        print("❌ Lỗi khi đẩy dữ liệu:", result["error"])
+                    else:
+                        print("✅ Thành công:", result["total"])
+                except Exception as e:
+                        logger.error(f"Lỗi khi gửi dữ liệu lên ES: {e}")
+
                 await delay(2000, 5000)
 
-                video_info = await extract_video_info(new_page)
-                item = TiktokPost().new(video_info)
-                data.append(item)
-
-                await delay(2000, 5000)
-                await new_page.close()
-
-            await delay(2000, 5000)
-            result = await postToESUnclassified(data)
-            if not result["success"]:
-                print("❌ Lỗi khi đẩy dữ liệu:", result["error"])
-            else:
-                print("✅ Thành công:", result["total"])
-
+            except Exception as e:
+                logger.error(f"🔥 Lỗi vòng keyword '{keyword}': {e}")
+                # vẫn tiếp tục keyword tiếp theo
+                continue
+            
 async def schedule():
     while True:
         try:
-            print("=== Bắt đầu chạy run() ===")
+            logger.info("=== Bắt đầu chạy run() ===")
             await run()
-            print("=== Hoàn thành, ngủ 15 phút ===")
+            logger.info("=== Hoàn thành, ngủ 15 phút ===")
         except Exception as e:
-            print("Lỗi trong run():", e)
+            logger.error(f"Lỗi trong run(): {e}")
 
         await asyncio.sleep(30 * 60)   # 15 phút
 if __name__ == "__main__":
