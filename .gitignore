@@ -8,6 +8,7 @@ tiktok_profile.json
 # Output JSON
 video.json
 tiktok_profile.json
+data.json
 
 # Bytecode
 __pycache__/

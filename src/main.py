@@ -129,7 +129,7 @@ async def run():
 
         data = []
         
-        for i in range(3):
+        for i in range(10):
             print("Item:", i)
             item = locator.nth(i)
             video_url = await item.locator("a[href*='/video/']").get_attribute("href")
@@ -145,14 +145,8 @@ async def run():
             item = TiktokPost().new(video_info)
             data.append(item)
 
-            await new_page.close()
-            # await page.wait_for_timeout(5000)
-            # await page.go_back()
-            # await page.wait_for_load_state("domcontentloaded")
             await new_page.wait_for_timeout(3000)
-            # items = await page.locator("#search_top-item-list .grid-item-container").all()
-
-
+            await new_page.close()
 
         with open("data.json", "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=4)
