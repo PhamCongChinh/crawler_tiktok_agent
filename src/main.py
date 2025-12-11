@@ -122,38 +122,35 @@ async def run():
         await page.wait_for_selector("#search_top-item-list")
        
         # await page.wait_for_selector("#search_top-item-list")
-        items = await page.query_selector_all("#search_top-item-list [id^='grid-item-container-']")
-        print("Tìm thấy:", len(items))
+        # items = await page.query_selector_all("#search_top-item-list [id^='grid-item-container-']")
+        # print("Tìm thấy:", len(items))
+        locator = page.locator("#search_top-item-list [id^='grid-item-container-']")
+        count = await locator.count()
 
         data = []
+        
+        for i in range(3):
+            print("Item:", i)
+            item = locator.nth(i)
+            video_url = await item.locator("a[href*='/video/']").get_attribute("href")
+            print("Link video:", video_url)
 
-        for idx, item in enumerate(items):
-            print(idx)
-            
-            # async with context.expect_page() as new_page_info:
-            #     await item.click()
-            # new_page = await new_page_info.value
-            # print(f"Đã mở tab {idx}: {new_page.url}")
-            await page.wait_for_timeout(3000)
-            await item.click(force=True)
+            new_page = await context.new_page()
+            await new_page.goto(video_url)
+            await new_page.wait_for_load_state("domcontentloaded")
+        
+            await new_page.wait_for_timeout(3000)
 
-            await page.wait_for_load_state("domcontentloaded")
-            await page.wait_for_timeout(3000)
-            await page.reload()
-            await page.evaluate("""
-                const vid = document.querySelector('video');
-                if (vid) { vid.muted = false; vid.play(); }
-            """)
-            await page.wait_for_timeout(5000)
-
-            video_info = await extract_video_info(page)
+            video_info = await extract_video_info(new_page)
             item = TiktokPost().new(video_info)
             data.append(item)
-            await page.wait_for_timeout(5000)
-            await page.go_back()
-            await page.wait_for_load_state("domcontentloaded")
-            await page.wait_for_timeout(5000)
-            items = await page.locator("#search_top-item-list .grid-item-container").all()
+
+            await new_page.close()
+            # await page.wait_for_timeout(5000)
+            # await page.go_back()
+            # await page.wait_for_load_state("domcontentloaded")
+            await new_page.wait_for_timeout(3000)
+            # items = await page.locator("#search_top-item-list .grid-item-container").all()
 
 
 
