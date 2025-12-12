@@ -38,7 +38,7 @@ async def extract_video_info(page):
 
 
 async def scroll_tiktok(page):
-    for _ in range(2):  # scroll 50 lần
+    for _ in range(1):  # scroll 50 lần
         await page.evaluate("window.scrollBy(0, 2500);")
         await page.wait_for_timeout(4200)
 
@@ -59,14 +59,19 @@ async def run():
             if request.resource_type in ["image", "media", "font", "stylesheet"] 
             else route.continue_()
         ))
-        
+
         page = await context.new_page()
         await delay(2000, 4000)
+
+        await page.goto("https://www.tiktok.com", wait_until="networkidle", timeout=60000)
+        logger.info("Đã vào trang chủ TikTok")
 
         with open("keywords.json", "r", encoding="utf8") as f:
             keywords = json.load(f)
 
-        logger.info(keywords)
+        logger.info(f"Loaded {len(keywords)} keywords: {keywords}")
+        await delay(2000, 4000)
+
 
         for keyword in keywords:
             try:
@@ -76,7 +81,7 @@ async def run():
 
                 await page.goto(
                     url,
-                    wait_until="domcontentloaded",
+                    wait_until="networkidle",
                     timeout=60000
                 )
                 await delay(2000, 5000)
@@ -104,12 +109,17 @@ async def run():
             
                 for i in range(count):
                     try:
-                        logger.info(f"Item: {i}")
+
+                        if i >= 3 and (i - 3) % 4 == 0:
+                            await page.evaluate("window.scrollBy(0, 500)")
+                            await asyncio.sleep(1)
+
+
                         item = locator.nth(i)
                         video_url = await item.locator("a[href*='/video/']").get_attribute("href")
-                        logger.info(f"Link video: {video_url}")
+                        logger.info(f"[{i}]Link video: {video_url}")
 
-                        await delay(1000, 3000)
+                        await delay(2000, 4000)
                         new_page = await context.new_page()
                         await new_page.goto(video_url)
                         await new_page.wait_for_load_state("domcontentloaded")
@@ -148,7 +158,7 @@ async def run():
 async def schedule():
     while True:
         try:
-            logger.info("=== Bắt đầu chạy run() ===")
+            logger.info("---------------Bắt đầu chạy run() -----------------")
             await run()
             logger.info(f"=== Hoàn thành, chờ {settings.SLEEP} phút ===")
         except Exception as e:
