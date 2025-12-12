@@ -119,7 +119,7 @@ async def run():
 
                 data = []
             
-                for i in range(min(5, count)):
+                for i in range(count):
                     try:
                         logger.info(f"Item: {i}")
                         item = locator.nth(i)
