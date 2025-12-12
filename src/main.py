@@ -107,7 +107,7 @@ async def run():
 
                 data = []
             
-                for i in range(count):
+                for i in range(8):
                     try:
 
                         if i >= 3 and (i - 3) % 4 == 0:
