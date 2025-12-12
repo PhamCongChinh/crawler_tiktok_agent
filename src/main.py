@@ -61,16 +61,16 @@ async def run():
         ))
 
         page = await context.new_page()
-        await delay(2000, 4000)
+        await delay(800, 1500)
 
-        await page.goto("https://www.tiktok.com", wait_until="networkidle", timeout=60000)
+        await page.goto("https://www.tiktok.com", wait_until="domcontentloaded", timeout=60000)
         logger.info("Đã vào trang chủ TikTok")
 
         with open("keywords.json", "r", encoding="utf8") as f:
             keywords = json.load(f)
 
         logger.info(f"Loaded {len(keywords)} keywords: {keywords}")
-        await delay(3000, 5000)
+        await delay(800, 1500)
 
 
         for keyword in keywords:
@@ -79,12 +79,8 @@ async def run():
                 encoded = urllib.parse.quote(keyword)
                 url = f"https://www.tiktok.com/search?q={encoded}&t={unix_time}"
 
-                await page.goto(
-                    url,
-                    wait_until="networkidle",
-                    timeout=60000
-                )
-                await delay(3000, 5000)
+                await page.goto(url, wait_until="networkidle", timeout=60000)
+                await delay(1500, 3000)
 
                 try:
                     error_box = page.locator("h2[data-e2e='search-error-title']")
@@ -104,27 +100,24 @@ async def run():
        
                 locator = page.locator("#search_top-item-list [id^='grid-item-container-']")
                 count = await locator.count()
+                logger.info(f"Tìm được {count} item")
 
                 data = []
+                limit = min(5, count)
             
-                for i in range(8):
+                for i in range(limit):
+                    new_page = None
                     try:
-
-                        if i >= 3 and (i - 3) % 4 == 0:
-                            await page.evaluate("window.scrollBy(0, 500)")
-                            await asyncio.sleep(1)
-
-
                         item = locator.nth(i)
                         video_url = await item.locator("a[href*='/video/']").get_attribute("href")
-                        logger.info(f"[{i}]Link video: {video_url}")
+                        logger.info(f"[{i+1}]Link video: {video_url}")
 
-                        await delay(2000, 4000)
+                        await delay(1200, 2500)
                         new_page = await context.new_page()
                         await new_page.goto(video_url)
                         await new_page.wait_for_load_state("domcontentloaded")
                     
-                        await delay(2000, 5000)
+                        await delay(10000, 15000)
 
                         video_info = await extract_video_info(new_page)
                         
@@ -133,13 +126,13 @@ async def run():
                     except Exception as e:
                         logger.error(f"Lỗi khi crawl video item {i}: {e}")
                     finally:
-                        await delay(2000, 5000)
+                        await delay(1000, 2000)
                         try:
                             await new_page.close()
                         except:
                             pass
 
-                await delay(10000, 12000)
+                await delay(4000, 7000)
                 try:
                     result = await postToESUnclassified(data)
                     if not result["success"]:
@@ -149,7 +142,7 @@ async def run():
                 except Exception as e:
                         logger.error(f"Lỗi khi gửi dữ liệu lên ES: {e}")
 
-                await delay(10000, 12000)
+                await delay(2500, 4000)
 
             except Exception as e:
                 logger.error(f"🔥 Lỗi vòng keyword '{keyword}': {e}")
