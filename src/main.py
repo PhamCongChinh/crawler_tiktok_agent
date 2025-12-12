@@ -70,7 +70,7 @@ async def run():
             keywords = json.load(f)
 
         logger.info(f"Loaded {len(keywords)} keywords: {keywords}")
-        await delay(2000, 4000)
+        await delay(3000, 5000)
 
 
         for keyword in keywords:
@@ -84,7 +84,7 @@ async def run():
                     wait_until="networkidle",
                     timeout=60000
                 )
-                await delay(2000, 5000)
+                await delay(3000, 5000)
 
                 try:
                     error_box = page.locator("h2[data-e2e='search-error-title']")
@@ -139,7 +139,7 @@ async def run():
                         except:
                             pass
 
-                await delay(5000, 10000)
+                await delay(10000, 12000)
                 try:
                     result = await postToESUnclassified(data)
                     if not result["success"]:
@@ -149,7 +149,7 @@ async def run():
                 except Exception as e:
                         logger.error(f"Lỗi khi gửi dữ liệu lên ES: {e}")
 
-                await delay(6000, 10000)
+                await delay(10000, 12000)
 
             except Exception as e:
                 logger.error(f"🔥 Lỗi vòng keyword '{keyword}': {e}")
