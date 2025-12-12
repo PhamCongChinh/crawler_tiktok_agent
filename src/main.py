@@ -1,4 +1,5 @@
 import asyncio
+import random
 from playwright.async_api import async_playwright
 import time
 import urllib.parse
@@ -37,10 +38,11 @@ async def extract_video_info(page):
     }
 
 
-async def scroll_tiktok(page):
-    for _ in range(1):  # scroll 50 lần
-        await page.evaluate("window.scrollBy(0, 2500);")
-        await page.wait_for_timeout(4200)
+async def scroll_tiktok(page, times=1):
+    for _ in range(times):
+        distance = random.randint(1500, 3500)
+        await page.mouse.wheel(0, distance)
+        await page.wait_for_timeout(random.randint(900, 1800))
 
 
 async def run():
@@ -86,21 +88,22 @@ async def run():
                     error_box = page.locator("h2[data-e2e='search-error-title']")
 
                     if await error_box.is_visible():
-                        logger.info("Error hiển thị: Something went wrong")
+                        logger.info(f"[{keyword}] Error hiển thị: Something went wrong")
                         btn = page.locator("button:has-text('Try again')")
                         if await btn.is_visible():
-                            logger.info("Try again visible → click")
+                            logger.info(f"[{keyword}] Try again visible → click")
                             await btn.click()
                             await asyncio.sleep(2)
                 except Exception as e:
-                    logger.error(f"Lỗi khi xử lý error box: {e}")
-
+                    logger.error(f"[{keyword}] Lỗi khi xử lý error box: {e}")
+                
+                await scroll_tiktok(page=page, times=1)
 
                 await page.wait_for_selector("#search_top-item-list", timeout=60000)
        
                 locator = page.locator("#search_top-item-list [id^='grid-item-container-']")
                 count = await locator.count()
-                logger.info(f"Tìm được {count} item")
+                logger.info(f"[{keyword}] Tìm được {count} item")
 
                 data = []
                 limit = min(5, count)
@@ -110,21 +113,21 @@ async def run():
                     try:
                         item = locator.nth(i)
                         video_url = await item.locator("a[href*='/video/']").get_attribute("href")
-                        logger.info(f"[{i+1}]Link video: {video_url}")
+                        logger.info(f"[{keyword}][{i+1}] Link video: {video_url}")
 
                         await delay(1200, 2500)
                         new_page = await context.new_page()
                         await new_page.goto(video_url)
                         await new_page.wait_for_load_state("domcontentloaded")
                     
-                        await delay(10000, 15000)
+                        await delay(20000, 30000)
 
                         video_info = await extract_video_info(new_page)
                         
                         item = TiktokPost().new(video_info)
                         data.append(item)
                     except Exception as e:
-                        logger.error(f"Lỗi khi crawl video item {i}: {e}")
+                        logger.error(f"[{keyword}] Lỗi khi crawl video item {i}: {e}")
                     finally:
                         await delay(1000, 2000)
                         try:
@@ -136,9 +139,9 @@ async def run():
                 try:
                     result = await postToESUnclassified(data)
                     if not result["success"]:
-                        print("❌ Lỗi khi đẩy dữ liệu:", result["error"])
+                        logger.error(f'[{keyword}] Lỗi khi đẩy dữ liệu: { result["error"]}')
                     else:
-                        print("✅ Thành công:", result["total"])
+                        logger.info(f'✅ Thành công: gửi {result["total"]} bài viết')
                 except Exception as e:
                         logger.error(f"Lỗi khi gửi dữ liệu lên ES: {e}")
 
