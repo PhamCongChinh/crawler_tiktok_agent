@@ -6,20 +6,22 @@ import json
 
 from parsers.video_parser import TiktokPost
 from api import postToESUnclassified
+from config.settings import settings
 from utils import delay
 
-
-from logging_config import setup_logging
+from config.logging import setup_logging
 import logging
 setup_logging()
 logger = logging.getLogger(__name__)
-
-
 
 async def extract_video_info(page):
     raw = await page.locator("#__UNIVERSAL_DATA_FOR_REHYDRATION__").inner_text()
     data = json.loads(raw)
     root = data["__DEFAULT_SCOPE__"]["webapp.video-detail"]["itemInfo"]["itemStruct"]
+
+    with open("data.json", "w", encoding="utf-8") as f:
+        json.dump(root, f, ensure_ascii=False, indent=4)
+
     return {
         "pub_time": int(root["createTime"]),
         "description": root["desc"],
@@ -36,31 +38,10 @@ async def extract_video_info(page):
 
 
 async def scroll_tiktok(page):
-    for _ in range(5):  # scroll 50 lần
+    for _ in range(2):  # scroll 50 lần
         await page.evaluate("window.scrollBy(0, 2500);")
         await page.wait_for_timeout(4200)
 
-async def handle_something_went_wrong(page):
-    # Check error text
-    error = page.locator("h2[data-e2e='search-error-title']:has-text('Something went wrong')")
-
-    if await error.count() > 0:
-        print("Detected 'Something went wrong' → trying to recover")
-
-        # Try click Try Again
-        btn = page.locator("button:has-text('Try again')")
-        if await btn.count() > 0:
-            await btn.click()
-            await asyncio.sleep(3)
-            return True
-        
-        # If no button, reload page
-        print("Try again button not found → reload page")
-        await page.reload(wait_until="domcontentloaded")
-        await asyncio.sleep(3)
-        return True
-
-    return False
 
 async def run():
     async with async_playwright() as p:
@@ -72,11 +53,13 @@ async def run():
             args=["--disable-blink-features=AutomationControlled"]
         )
         context = await browser.new_context(storage_state="tiktok_profile.json")
+
         await context.route("**/*", lambda route, request: (
             route.abort() 
             if request.resource_type in ["image", "media", "font", "stylesheet"] 
             else route.continue_()
         ))
+        
         page = await context.new_page()
         await delay(2000, 4000)
 
@@ -134,6 +117,7 @@ async def run():
                         await delay(2000, 5000)
 
                         video_info = await extract_video_info(new_page)
+                        
                         item = TiktokPost().new(video_info)
                         data.append(item)
                     except Exception as e:
@@ -159,7 +143,6 @@ async def run():
 
             except Exception as e:
                 logger.error(f"🔥 Lỗi vòng keyword '{keyword}': {e}")
-                # vẫn tiếp tục keyword tiếp theo
                 continue
             
 async def schedule():
@@ -167,11 +150,10 @@ async def schedule():
         try:
             logger.info("=== Bắt đầu chạy run() ===")
             await run()
-            logger.info("=== Hoàn thành, ngủ 15 phút ===")
+            logger.info(f"=== Hoàn thành, chờ {settings.SLEEP} phút ===")
         except Exception as e:
             logger.error(f"Lỗi trong run(): {e}")
 
-        await asyncio.sleep(30 * 60)   # 15 phút
+        await asyncio.sleep(settings.SLEEP * 60)
 if __name__ == "__main__":
     asyncio.run(schedule())
-

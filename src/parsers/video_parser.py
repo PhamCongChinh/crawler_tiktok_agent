@@ -23,11 +23,6 @@ class TiktokPost:
 
     def new(self, data: dict):
 
-        # author = data.get("author", {})
-        # stats = data.get("stats", {})
-        # post_id = data.get("id")
-        # unique_id = author.get("uniqueId", "")
-
         unique_id = data.get("unique_id", None)
         post_id = data.get("video_id", None)
         
@@ -37,7 +32,7 @@ class TiktokPost:
             "crawl_source_code": self.crawl_source_code,
             "pub_time": data.get("pub_time", 0),
             "crawl_time": int(datetime.now().timestamp()),
-            "subject_id": data.get("subject_id", None),
+            "subject_id": data.get("video_id", None),
             "title": data.get("title", None),
             "description": data.get("description", None),
             "content": data.get("description"),
@@ -50,13 +45,13 @@ class TiktokPost:
             "views": data.get("views", 0),
             "web_tags": "[]",
             "web_keywords": "[]",
-            "auth_id": data.get("auth_id", ""),
-            "auth_name": data.get("auth_name", ""),
+            "auth_id": data.get("auth_id", None),
+            "auth_name": data.get("auth_name", None),
             "auth_type": self.auth_type,
             "auth_url": self._build_author_url(unique_id),
             "source_id": post_id,
             "source_type": self.source_type,
-            "source_name": data.get("auth_name", ""),
+            "source_name": data.get("auth_name", None),
             "source_url": self._build_video_url(unique_id, post_id),
             "reply_to": None,
             "level": None,
