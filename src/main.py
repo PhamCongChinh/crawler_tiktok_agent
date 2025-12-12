@@ -139,7 +139,7 @@ async def run():
                         except:
                             pass
 
-                await delay(2000, 5000)
+                await delay(5000, 10000)
                 try:
                     result = await postToESUnclassified(data)
                     if not result["success"]:
@@ -149,7 +149,7 @@ async def run():
                 except Exception as e:
                         logger.error(f"Lỗi khi gửi dữ liệu lên ES: {e}")
 
-                await delay(2000, 5000)
+                await delay(6000, 10000)
 
             except Exception as e:
                 logger.error(f"🔥 Lỗi vòng keyword '{keyword}': {e}")
