@@ -71,7 +71,7 @@ class CrawlerKeyword:
 
                 data = []
             
-                for i in range(min(5, count)):
+                for i in range(min(8, count)):
                     try:
 
                         if i >= 3 and (i - 3) % 4 == 0:
