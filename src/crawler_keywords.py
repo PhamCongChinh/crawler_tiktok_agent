@@ -8,28 +8,28 @@ from config.logging import setup_logging
 import logging
 
 from parsers.video_parser import TiktokPost
-from utils import delay
+from utils import delay, extract_video_info
 setup_logging()
 logger = logging.getLogger(__name__)
 
-async def extract_video_info(page):
-    raw = await page.locator("#__UNIVERSAL_DATA_FOR_REHYDRATION__").inner_text()
-    data = json.loads(raw)
-    root = data["__DEFAULT_SCOPE__"]["webapp.video-detail"]["itemInfo"]["itemStruct"]
+# async def extract_video_info(page):
+#     raw = await page.locator("#__UNIVERSAL_DATA_FOR_REHYDRATION__").inner_text()
+#     data = json.loads(raw)
+#     root = data["__DEFAULT_SCOPE__"]["webapp.video-detail"]["itemInfo"]["itemStruct"]
 
-    return {
-        "pub_time": int(root["createTime"]),
-        "description": root["desc"],
-        "video_id": root["id"],
-        "unique_id": root["author"]["uniqueId"],
-        "comments": root["stats"]["commentCount"],
-        "shares": root["stats"]["shareCount"],
-        "reactions": root["stats"]["diggCount"],
-        "favors": root["stats"]["collectCount"],
-        "views": root["stats"]["playCount"],
-        "auth_id": root["author"]["id"],
-        "auth_name": root["author"]["nickname"],
-    }
+#     return {
+#         "pub_time": int(root["createTime"]),
+#         "description": root["desc"],
+#         "video_id": root["id"],
+#         "unique_id": root["author"]["uniqueId"],
+#         "comments": root["stats"]["commentCount"],
+#         "shares": root["stats"]["shareCount"],
+#         "reactions": root["stats"]["diggCount"],
+#         "favors": root["stats"]["collectCount"],
+#         "views": root["stats"]["playCount"],
+#         "auth_id": root["author"]["id"],
+#         "auth_name": root["author"]["nickname"],
+#     }
 
 
 class CrawlerKeyword:
@@ -81,7 +81,7 @@ class CrawlerKeyword:
 
                         item = locator.nth(i)
                         video_url = await item.locator("a[href*='/video/']").get_attribute("href")
-                        logger.info(f"[{i}]Link video: {video_url}")
+                        logger.info(f"[{i+1}]Link video: {video_url}")
 
                         await delay(2000, 4000)
                         new_page = await context.new_page()
