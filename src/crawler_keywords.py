@@ -102,11 +102,11 @@ class CrawlerKeyword:
                         await new_page.goto(video_url, wait_until="domcontentloaded")
                         # await new_page.wait_for_load_state("domcontentloaded")
 
-                        if await detect_captcha(new_page):
-                            logger.warning("[{keyword}] ⚠️ CAPTCHA detected – chờ 60s")
-                            await delay(90000, 120000)
-                            await new_page.close()
-                            continue
+                        # if await detect_captcha(new_page):
+                        #     logger.warning("[{keyword}] ⚠️ CAPTCHA detected – chờ 60s")
+                        #     await delay(90000, 120000)
+                        #     await new_page.close()
+                        #     continue
                     
                         await delay(20000, 30000)
 
