@@ -67,7 +67,7 @@ def setup_logging():
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.INFO)
     console_handler.setFormatter(
-        ColorFormatter("%(asctime)s | %(name)s | %(levelname)s - %(message)s")
+        ColorFormatter("%(asctime)s | %(levelname)s - %(message)s")
     )
 
     # Gắn vào root logger

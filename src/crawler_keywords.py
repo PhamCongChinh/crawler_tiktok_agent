@@ -8,7 +8,7 @@ from config.logging import setup_logging
 import logging
 
 from parsers.video_parser import TiktokPost
-from utils import delay, extract_video_info
+from utils import delay, detect_captcha, extract_video_info, smart_delay
 setup_logging()
 logger = logging.getLogger(__name__)
 
@@ -79,11 +79,16 @@ class CrawlerKeyword:
                         time_text = (await item.inner_text()).lower()
                         if "ago" not in time_text and "trước" not in time_text:
                             continue
+                        
 
                         # 2️⃣ Scroll CHỈ khi item hợp lệ
                         if i >= 3 and (i - 3) % 4 == 0:
                             await page.evaluate("window.scrollBy(0, 500)")
                             await delay(800, 1200)
+                            if await detect_captcha(page):
+                                logger.warning("⚠️ CAPTCHA detected (list page) – chờ 60s")
+                                await delay(90000, 120000)
+                                continue
 
                         video_url = await item.locator("a[href*='/video/']").get_attribute("href")
                         if not video_url:
@@ -91,12 +96,17 @@ class CrawlerKeyword:
 
                         logger.info(f"[{i+1}] {video_url}")
 
-                        # 4️⃣ Delay trước khi mở video (né bot)
-                        await delay(1500, 3000)
+                        await delay(*smart_delay())
 
                         new_page = await context.new_page()
-                        await new_page.goto(video_url)
-                        await new_page.wait_for_load_state("domcontentloaded")
+                        await new_page.goto(video_url, wait_until="domcontentloaded")
+                        # await new_page.wait_for_load_state("domcontentloaded")
+
+                        if await detect_captcha(new_page):
+                            logger.warning("⚠️ CAPTCHA detected – chờ 60s")
+                            await delay(90000, 120000)
+                            await new_page.close()
+                            continue
                     
                         await delay(20000, 30000)
 
