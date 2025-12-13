@@ -10,6 +10,7 @@ video.json
 tiktok_profile.json
 data.json
 keywords.json
+urls.json
 
 # Bytecode
 __pycache__/
