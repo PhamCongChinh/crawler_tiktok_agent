@@ -55,20 +55,20 @@ class CrawlerKeyword:
                     error_box = page.locator("h2[data-e2e='search-error-title']")
 
                     if await error_box.is_visible():
-                        logger.info("Error hiển thị: Something went wrong")
+                        logger.info(f"[{keyword}] Error hiển thị: Something went wrong")
                         btn = page.locator("button:has-text('Try again')")
                         if await btn.is_visible():
-                            logger.info("Try again visible → click")
+                            logger.info(f"[{keyword}] Try again visible → click")
                             await btn.click()
                             await asyncio.sleep(2)
                 except Exception as e:
-                    logger.error(f"Lỗi khi xử lý error box: {e}")
+                    logger.error(f"[{keyword}] Lỗi khi xử lý error box: {e}")
 
                 await page.wait_for_selector("#search_top-item-list", timeout=60000)
        
                 locator = page.locator("#search_top-item-list [id^='grid-item-container-']")
                 count = await locator.count()
-                logger.info(f"Có tất cả {count} tin bài")
+                logger.info(f"[{keyword}] Có tất cả {count} tin bài")
 
                 data = []
             
@@ -85,16 +85,16 @@ class CrawlerKeyword:
                         if i >= 3 and (i - 3) % 4 == 0:
                             await page.evaluate("window.scrollBy(0, 500)")
                             await delay(800, 1200)
-                            if await detect_captcha(page):
-                                logger.warning("⚠️ CAPTCHA detected (list page) – chờ 60s")
-                                await delay(90000, 120000)
-                                continue
+                            # if await detect_captcha(page):
+                            #     logger.warning(f"[{keyword}] ⚠️ CAPTCHA detected (list page) – chờ 60s")
+                            #     await delay(90000, 120000)
+                            #     continue
 
                         video_url = await item.locator("a[href*='/video/']").get_attribute("href")
                         if not video_url:
                             continue
 
-                        logger.info(f"[{i+1}] {video_url}")
+                        logger.info(f"[{keyword}] [{i+1}] {video_url}")
 
                         await delay(*smart_delay())
 
@@ -103,7 +103,7 @@ class CrawlerKeyword:
                         # await new_page.wait_for_load_state("domcontentloaded")
 
                         if await detect_captcha(new_page):
-                            logger.warning("⚠️ CAPTCHA detected – chờ 60s")
+                            logger.warning("[{keyword}] ⚠️ CAPTCHA detected – chờ 60s")
                             await delay(90000, 120000)
                             await new_page.close()
                             continue
@@ -125,14 +125,14 @@ class CrawlerKeyword:
                     try:
                         result = await postToESUnclassified(data)
                         if not result["success"]:
-                            logger.error(f"❌ Lỗi ES: {result['error']}")
+                            logger.error(f"[{keyword}] ❌ Lỗi ES: {result['error']}")
                         else:
-                            logger.info(f"✅ Đẩy ES thành công: {result['total']}")
+                            logger.info(f"[{keyword}] ✅ Đẩy ES thành công: {result['total']}")
                     except Exception as e:
-                            logger.error(f"Lỗi khi gửi dữ liệu lên ES: {e}")
+                            logger.error(f"[{keyword}] Lỗi khi gửi dữ liệu lên ES: {e}")
 
                 await delay(2000, 4000)
 
             except Exception as e:
-                logger.error(f"🔥 Lỗi vòng keyword '{keyword}': {e}")
+                logger.error(f"[{keyword}] 🔥 Lỗi vòng keyword '{keyword}': {e}")
                 continue
