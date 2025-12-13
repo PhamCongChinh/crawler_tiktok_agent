@@ -3,36 +3,39 @@ import httpx
 
 URL_UNCLASSIFIED = "http://103.97.125.64:4416/api/v1/posts/insert-unclassified-org-posts"
 
-async def postToESUnclassified(content: any) -> any:
-    total = len(content)
-    data = {
-        "index": "not_classify_org_posts",
-        "data": content,
-        "upsert": True
-    }
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(URL_UNCLASSIFIED, json=data)
-            if response.status_code >= 400:
+async def postToESUnclassified(data: any) -> any:
+    total = len(data)
+    if total > 0:
+        data = {
+            "index": "not_classify_org_posts",
+            "data": data,
+            "upsert": True
+        }
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(URL_UNCLASSIFIED, json=data)
+                if response.status_code >= 400:
+                    return {
+                        "success": False,
+                        "total": total,
+                        "status": response.status_code,
+                        "error": response.text,
+                        "response": None
+                    }
                 return {
-                    "success": False,
+                    "success": True,
                     "total": total,
                     "status": response.status_code,
-                    "error": response.text,
-                    "response": None
+                    "error": None,
+                    "response": response.json()
                 }
+        except Exception as e:
             return {
-                "success": True,
+                "success": False,
                 "total": total,
-                "status": response.status_code,
-                "error": None,
-                "response": response.json()
+                "status": None,
+                "error": str(e),
+                "response": None
             }
-    except Exception as e:
-        return {
-            "success": False,
-            "total": total,
-            "status": None,
-            "error": str(e),
-            "response": None
-        }
+    else:
+        print(f"Không có dữ liệu!")
