@@ -1,7 +1,6 @@
 import asyncio
 from playwright.async_api import async_playwright
 
-
 async def login_and_save():
     async with async_playwright() as p:
         chrome_path = "C:/Program Files/Google/Chrome/Application/chrome.exe"
@@ -17,15 +16,7 @@ async def login_and_save():
         # Mở trang đăng nhập TikTok
         await page.goto("https://www.tiktok.com/login")
 
-        # 👉 Tại đây bạn nhập tay tài khoản/mật khẩu hoặc tự động điền bằng Playwright
-        # Ví dụ: await page.fill("input[name='username']", "your_username")
-        # await page.fill("input[name='password']", "your_password")
-        # await page.click("button[type='submit']")
-
         await page.wait_for_timeout(60000)
-
-        # Chờ đăng nhập thành công (ví dụ chờ avatar xuất hiện)
-        await page.wait_for_selector("img[data-e2e='profile-avatar']")
 
         # Lưu cookies + localStorage vào file
         await context.storage_state(path="tiktok_profile.json")
