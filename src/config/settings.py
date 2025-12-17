@@ -3,6 +3,8 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     DELAY: int = 5
     SLEEP: int = 60
+    GPM_API: str
+    PROFILE_ID: str
 
     class Config:
         env_file = ".env"
