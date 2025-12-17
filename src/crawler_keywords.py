@@ -8,7 +8,7 @@ from src.config.logging import setup_logging
 import logging
 
 from src.parsers.video_parser import TiktokPost
-from src.utils import delay
+from src.utils import delay, smart_delay
 setup_logging()
 logger = logging.getLogger(__name__)
 
