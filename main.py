@@ -3,6 +3,8 @@ import requests
 from playwright.async_api import async_playwright
 from src.config.logging import setup_logging
 import logging
+
+from src.utils import delay
 setup_logging()
 logger = logging.getLogger(__name__)
 import json
@@ -14,10 +16,10 @@ GPM_API = settings.GPM_API
 PROFILE_ID = settings.PROFILE_ID
 
 async def block_resources(route, request):
-    if request.resource_type in ("image", "font"):
-        await route.abort()
-    else:
-        await route.continue_()
+	if request.resource_type in ("image", "font"):
+		await route.abort()
+	else:
+		await route.continue_()
 
 async def run_with_gpm():
 	resp = requests.get(f"{GPM_API}/profiles/start/{PROFILE_ID}")
@@ -43,13 +45,47 @@ async def run_with_gpm():
 			await page.close()
 			await browser.close()
 
+
+async def run_test():
+	async with async_playwright() as p:
+		chrome_path = "C:/Program Files/Google/Chrome/Application/chrome.exe"  # đường dẫn Chrome trên Windows
+
+		browser = await p.chromium.launch(
+			headless=False,
+			executable_path=chrome_path,
+			args=["--disable-blink-features=AutomationControlled"]
+		)
+		context = await browser.new_context(storage_state="tiktok_profile.json")
+
+		await context.route("**/*", block_resources)
+
+		page = await context.new_page()
+		await delay(800, 1500)
+		try:
+			await page.goto("https://www.tiktok.com", wait_until="domcontentloaded", timeout=60000)
+			logger.info("Đã vào trang chủ TikTok")
+
+			with open("keywords.json", "r", encoding="utf8") as f:
+				keywords = json.load(f)
+
+			await CrawlerKeyword.crawler_keyword(context=context, page=page, keywords=keywords)
+		finally:
+			await page.close()
+			await browser.close()
+
+	
+
 async def schedule():
 	MINUTE = settings.DELAY
 	INTERVAL = MINUTE * 60
 	while True:
 		logger.info("---------------Bắt đầu chạy run() -----------------")
 		try:
-			await run_with_gpm()
+			if settings.DEBUG:
+				await run_test()
+			else:
+				await run_with_gpm()
+			
 			logger.info(f"=== Hoàn thành, chờ {MINUTE} phút ===")
 		except Exception as e:
 			logger.error(f"Lỗi trong run(): {e}")

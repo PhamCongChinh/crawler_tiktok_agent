@@ -73,16 +73,14 @@ async def run():
         with open("keywords.json", "r", encoding="utf8") as f:
             keywords = json.load(f)
 
-        # logger.info(f"Loaded {len(keywords)} keywords: {keywords}")
-        # await delay(800, 1500)
 
-        crawler_keywords = await CrawlerKeyword.crawler_keyword(context=context, page=page, keywords=keywords)
+        await CrawlerKeyword.crawler_keyword(context=context, page=page, keywords=keywords)
 
 
-        with open("urls.json", "r", encoding="utf8") as f:
-            urls = json.load(f)
+        # with open("urls.json", "r", encoding="utf8") as f:
+        #     urls = json.load(f)
 
-        crawler_urls = await CrawlerUrl.crawler_url(context=context, page=page, urls=urls)
+        # crawler_urls = await CrawlerUrl.crawler_url(context=context, page=page, urls=urls)
         
         # for keyword in keywords:
         #     try:

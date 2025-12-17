@@ -1,6 +1,7 @@
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
+    DEBUG: bool = False
     DELAY: int = 5
     SLEEP: int = 60
     GPM_API: str
