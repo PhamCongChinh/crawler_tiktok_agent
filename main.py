@@ -37,7 +37,7 @@ async def run_with_gpm():
 
 		try:
 			await page.goto("https://www.tiktok.com", timeout=60000)
-			print("✅ Đã vào TikTok bằng GPM profile")
+			logger.info("Đã vào TikTok bằng GPM profile")
 			with open("keywords.json", "r", encoding="utf8") as f:
 				keywords = json.load(f)
 			await CrawlerKeyword.crawler_keyword(context=context, page=page, keywords=keywords)
