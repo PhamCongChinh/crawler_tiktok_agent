@@ -33,17 +33,20 @@ LOGGING_CONFIG = {
 
     "formatters": {
         "standard": {
-            "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+            "format": "%(asctime)s - %(levelname)s - %(message)s"
         }
     },
 
     "handlers": {
         # File handler viết ra file, không màu
         "file": {
-            "class": "logging.FileHandler",
-            "level": "DEBUG",
+            "class": "logging.handlers.TimedRotatingFileHandler",
+            "level": "INFO",
             "formatter": "standard",
             "filename": "logs/app.log",
+            "when": "midnight",      # mỗi ngày
+            "interval": 1,
+            "backupCount": 3,       # giữ 3 ngày
             "encoding": "utf-8",
         },
     },
@@ -51,8 +54,7 @@ LOGGING_CONFIG = {
     "loggers": {
         "": {
             "handlers": ["file"],
-            "level": "DEBUG",
-            "propagate": True
+            "level": "INFO"
         }
     }
 }
@@ -67,7 +69,7 @@ def setup_logging():
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.INFO)
     console_handler.setFormatter(
-        ColorFormatter("%(asctime)s | %(name)s | %(levelname)s - %(message)s")
+        ColorFormatter("%(asctime)s |  %(levelname)s - %(message)s")
     )
 
     # Gắn vào root logger

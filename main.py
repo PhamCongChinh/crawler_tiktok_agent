@@ -16,7 +16,7 @@ GPM_API = settings.GPM_API
 PROFILE_ID = settings.PROFILE_ID
 
 async def block_resources(route, request):
-	if request.resource_type in ("image", "font"):
+	if request.resource_type in ("image", "font", "media", "stylesheet"):
 		await route.abort()
 	else:
 		await route.continue_()

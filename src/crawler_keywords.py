@@ -1,6 +1,7 @@
 import asyncio
 import json
 import time
+import random
 
 import urllib
 from src.api import postToESUnclassified
@@ -28,6 +29,7 @@ class CrawlerKeyword:
                     page=page,
                     keyword=keyword
                 )
+
             except Exception as e:
                 logger.exception(f"[{keyword}] 🔥 Lỗi keyword")
                 continue
@@ -45,11 +47,24 @@ class CrawlerKeyword:
         await page.goto(url, wait_until="domcontentloaded", timeout=30_000)
         await delay(2000, 5000)
 
-        await CrawlerKeyword._handle_search_error(page, keyword)
+        # await CrawlerKeyword._handle_search_error(page, keyword)
+
+        tab_video = page.get_by_role("tab", name="Videos")
+
+        await tab_video.wait_for(state="visible", timeout=10_000)
+        await tab_video.scroll_into_view_if_needed()
+        await tab_video.click()
+
+        await delay(2000, 5000)
 
         locator = page.locator("[id^='grid-item-container-']")
+
+
+        # Scroll 5 lần để load video
+        await CrawlerKeyword.human_scroll(page, locator, times=5)
+
         count = await locator.count()
-        logger.info(f"[{keyword}] Có {count} tin bài")
+        logger.info(f"[{keyword}] Tổng video sau scroll: {count}")
 
         results = []
 
@@ -60,38 +75,86 @@ class CrawlerKeyword:
                 if not await CrawlerKeyword._is_recent_item(item):
                     continue
 
-                await CrawlerKeyword._scroll_if_needed(page, i)
+                await item.scroll_into_view_if_needed()
+                await delay(300, 600)
 
                 video_url = await CrawlerKeyword._get_video_url(item)
                 if not video_url:
                     continue
 
-                logger.info(f"[{keyword}] [{i+1}] {video_url}")
-                await delay(*smart_delay())
+                logger.info(f"[{keyword}] [{i+1}/{count}] {video_url}")
 
                 post = await CrawlerKeyword._crawl_video(context, video_url)
                 if post:
                     results.append(post)
 
+                await delay(*smart_delay())
+
             except Exception as e:
                 logger.error(f"[{keyword}] ❌ Lỗi item {i}: {e}")
 
-        await CrawlerKeyword._push_to_es(keyword, results)
+        # await CrawlerKeyword._push_to_es(keyword, results)
+        if results:
+            await CrawlerKeyword._push_to_es(keyword, results)
+            logger.info(f"[{keyword}] ✅ Đã push {len(results)} video vào ES")
+        else:
+            logger.warning(f"[{keyword}] ⚠️ Không có video hợp lệ để push")
 
     # =======================
 
     @staticmethod
-    async def _handle_search_error(page, keyword):
-        try:
-            error_box = page.locator("h2[data-e2e='search-error-title']")
-            if await error_box.is_visible():
-                logger.warning(f"[{keyword}] ⚠️ Search error")
-                btn = page.locator("button:has-text('Try again')")
-                if await btn.is_visible():
-                    await btn.click()
-                    await asyncio.sleep(2)
-        except Exception as e:
-            logger.debug(f"[{keyword}] Không có error box: {e}")
+    async def human_scroll(page, locator, times: int = 5):
+        """
+        Scroll giống hành vi người dùng thật
+        :param page: playwright page
+        :param locator: locator video items
+        :param times: số lần scroll
+        """
+        for i in range(times):
+            count = await locator.count()
+            if count == 0:
+                break
+
+            # Move mouse nhẹ (giống người)
+            await page.mouse.move(
+                random.randint(100, 700),
+                random.randint(150, 600)
+            )
+
+            # Scroll tới item cuối
+            await locator.nth(count - 1).scroll_into_view_if_needed()
+
+            # ⏸️ Người dùng dừng xem video (đần đần 😄)
+            pause = random.randint(1500, 4500)
+            await page.wait_for_timeout(pause)
+
+            # 🔄 20% scroll ngược lại
+            if random.random() < 0.2:
+                await page.mouse.wheel(0, -random.randint(200, 500))
+                await page.wait_for_timeout(random.randint(400, 900))
+
+            # 😵‍💫 10% đứng im rất lâu (lướt mà quên scroll)
+            if random.random() < 0.1:
+                long_pause = random.randint(6000, 12000)
+                await page.wait_for_timeout(long_pause)
+
+            # Người dùng thường dừng xem
+            await page.wait_for_timeout(random.randint(1800, 3200))
+
+            logger.info(f"Người scroll {i+1}, tổng: {count}")
+
+    # @staticmethod
+    # async def _handle_search_error(page, keyword):
+    #     try:
+    #         error_box = page.locator("h2[data-e2e='search-error-title']")
+    #         if await error_box.is_visible():
+    #             logger.warning(f"[{keyword}] ⚠️ Search error")
+    #             btn = page.locator("button:has-text('Try again')")
+    #             if await btn.is_visible():
+    #                 await btn.click()
+    #                 await asyncio.sleep(2)
+    #     except Exception as e:
+    #         logger.debug(f"[{keyword}] Không có error box: {e}")
 
     @staticmethod
     async def _is_recent_item(item) -> bool:
@@ -131,7 +194,7 @@ class CrawlerKeyword:
         try:
             result = await postToESUnclassified(data)
             if result.get("success"):
-                logger.info(f"[{keyword}] ✅ ES OK: {result['total']}")
+                logger.info(f"[{keyword}] ✅ ==============> ES OK: {result['total']}")
             else:
                 logger.error(f"[{keyword}] ❌ ES fail: {result.get('error')}")
         except Exception as e:
