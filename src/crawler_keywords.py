@@ -158,8 +158,6 @@ class CrawlerKeyword:
             # Người dùng thường dừng xem
             await page.wait_for_timeout(random.randint(1800, 3200))
 
-            logger.info(f"Người scroll {i+1}, tổng: {count}")
-
     # @staticmethod
     # async def _handle_search_error(page, keyword):
     #     try:
