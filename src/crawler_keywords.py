@@ -49,11 +49,7 @@ class CrawlerKeyword:
 
         # await CrawlerKeyword._handle_search_error(page, keyword)
 
-        tab_video = page.get_by_role("tab", name="Videos")
-
-        await tab_video.wait_for(state="visible", timeout=10_000)
-        await tab_video.scroll_into_view_if_needed()
-        await tab_video.click()
+        await page.locator('#tabs-0-tab-search_video').click()
 
         await delay(2000, 5000)
 
