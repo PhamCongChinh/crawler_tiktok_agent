@@ -1,7 +1,8 @@
 import os
 import httpx
+import src.config.settings as settings
 
-URL_UNCLASSIFIED = "http://103.97.125.64:4416/api/v1/posts/insert-unclassified-org-posts"
+URL_UNCLASSIFIED = f"{settings.API}/api/v1/posts/insert-unclassified-org-posts"
 
 async def postToESUnclassified(content: any) -> any:
     total = len(content)
