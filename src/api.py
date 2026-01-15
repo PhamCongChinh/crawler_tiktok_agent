@@ -1,6 +1,6 @@
 import os
 import httpx
-import src.config.settings as settings
+from src.config.settings import settings
 
 URL_UNCLASSIFIED = f"{settings.API}/api/v1/posts/insert-unclassified-org-posts"
 
