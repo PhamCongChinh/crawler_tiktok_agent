@@ -2,8 +2,10 @@ import asyncio
 import json
 import time
 import random
+import hashlib
 
 import urllib
+from src.config.redis_client import redis_client
 from src.api import postToESUnclassified
 from src.config.logging import setup_logging
 import logging
@@ -44,7 +46,7 @@ class CrawlerKeyword:
         encoded = urllib.parse.quote(keyword)
         url = f"https://www.tiktok.com/search?q={encoded}&t={unix_time}"
 
-        await page.goto(url, wait_until="domcontentloaded", timeout=30_000)
+        await page.goto(url, wait_until="domcontentloaded", timeout=30000)
         await delay(2000, 5000)
 
         # await CrawlerKeyword._handle_search_error(page, keyword)
@@ -80,6 +82,11 @@ class CrawlerKeyword:
 
                 logger.info(f"[{keyword}] [{i+1}/{count}] {video_url}")
 
+                # ⛔ nếu đã tồn tại trong Redis thì bỏ qua
+                if not await CrawlerKeyword.should_crawl_video(redis_client, video_url):
+                    logger.info(f"SKIP (cached): {video_url}")
+                    continue
+
                 post = await CrawlerKeyword._crawl_video(context, video_url)
                 if post:
                     results.append(post)
@@ -99,7 +106,21 @@ class CrawlerKeyword:
     # =======================
 
     @staticmethod
-    async def human_scroll(page, locator, times: int = 5):
+    def video_key(video_url: str) -> str:
+        h = hashlib.md5(video_url.encode()).hexdigest()
+        return f"tiktok:video:{h}"
+
+    @staticmethod
+    async def should_crawl_video(redis_client, video_url: str, ttl=86400) -> bool:
+        key = CrawlerKeyword.video_key(video_url)
+
+        # SET key value NX EX ttl
+        # return True nếu SET thành công (chưa tồn tại)
+        ok = await redis_client.set(key, 1, nx=True, ex=ttl)
+        return ok is True
+
+    @staticmethod
+    async def human_scroll(page, locator, times: int = 1):
         """
         Scroll giống hành vi người dùng thật
         :param page: playwright page

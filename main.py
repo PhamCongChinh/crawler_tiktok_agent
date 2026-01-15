@@ -1,8 +1,10 @@
 import asyncio
 import requests
 from playwright.async_api import async_playwright
+from src.config import redis_client
 from src.config.logging import setup_logging
 import logging
+
 
 from src.utils import delay
 setup_logging()
@@ -33,17 +35,22 @@ async def run_with_gpm():
 		context = browser.contexts[0]
 		await context.route("**/*", block_resources)
 
-		page = await context.new_page()
+		if context.pages:
+			page = context.pages[0]
+			logger.info("Dùng lại page cũ")
+		else:
+			page = await context.new_page()
+			logger.info("Tạo page mới")
 
-		try:
-			await page.goto("https://www.tiktok.com", timeout=60000)
-			logger.info("Đã vào TikTok bằng GPM profile")
-			with open("keywords.json", "r", encoding="utf8") as f:
-				keywords = json.load(f)
-			await CrawlerKeyword.crawler_keyword(context=context, page=page, keywords=keywords)
-		finally:
-			await page.close()
-			await browser.close()
+		await delay(800, 1500)
+		
+		await page.goto("https://www.tiktok.com", timeout=60000)
+		logger.info("Đã vào TikTok bằng GPM profile")
+		with open("keywords.json", "r", encoding="utf8") as f:
+			keywords = json.load(f)
+		
+		await delay(1000, 2000)
+		await CrawlerKeyword.crawler_keyword(context=context, page=page, keywords=keywords)
 
 
 async def run_test():
@@ -76,6 +83,7 @@ async def run_test():
 	
 
 async def schedule():
+	logger.info(f"Redis Ping: {await redis_client.ping_redis()}")
 	MINUTE = settings.DELAY
 	INTERVAL = MINUTE * 60
 	while True:
@@ -91,6 +99,7 @@ async def schedule():
 			logger.error(f"Lỗi trong run(): {e}")
 
 		await asyncio.sleep(INTERVAL)
+
 
 if __name__ == "__main__":
 	asyncio.run(schedule())
