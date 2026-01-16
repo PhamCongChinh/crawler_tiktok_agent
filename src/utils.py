@@ -6,12 +6,6 @@ import json
 async def delay(min=2000, max=60000):
     await asyncio.sleep(random.uniform(min/1000, max/1000))
 
-def smart_delay():
-    hour = datetime.now().hour
-    if 1 <= hour <= 6:      # ban đêm
-        return (2800, 7500)
-    return (4000, 8000)    # ban ngày
-
 async def extract_video_info(page):
     raw = await page.locator("#__UNIVERSAL_DATA_FOR_REHYDRATION__").inner_text()
     data = json.loads(raw)
@@ -80,19 +74,3 @@ async def human_scroll(page, locator, times: int = 1):
         if random.random() < 0.1:
             await page.wait_for_timeout(random.randint(5000, 9000))
 
-
-async def _is_recent_item(item) -> bool:
-    try:
-        text = (await item.locator("time").inner_text()).lower()
-
-        # Mới trong vài giờ / phút
-        if any(x in text for x in ["minute", "phút", "hour", "giờ", "ago", "trước"]):
-            return True
-
-        # Gặp ngày là stop
-        if any(x in text for x in ["day", "ngày", "week", "tuần"]):
-            return False
-
-        return True
-    except:
-        return True

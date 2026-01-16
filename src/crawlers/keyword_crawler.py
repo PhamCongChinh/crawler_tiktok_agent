@@ -34,6 +34,11 @@ class KeywordCrawler:
         for i in range(count):
             item = items.nth(i)
 
+            try:
+                time_text = (await item.locator("time").inner_text()).strip()
+            except:
+                time_text = "unknown"
+
             if not await self._is_recent_item(item):
                     continue
 
@@ -46,12 +51,15 @@ class KeywordCrawler:
                 continue
 
             recent_count += 1
+            self.logger.info(
+                f"CRAWL [{recent_count}] {video_url} | ⏱ {time_text}"
+            )
 
             post = await self.video.crawl(video_url)
             if post:
                 results.append(post)
 
-            await delay(*smart_delay())
+            await delay(10000, 15000)
 
         self.logger.info(f"[{keyword}] 🔥 Video mới trong recent: {recent_count}")
         if results:
