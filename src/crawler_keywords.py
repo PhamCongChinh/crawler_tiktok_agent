@@ -11,7 +11,7 @@ from src.config.logging import setup_logging
 import logging
 
 from src.parsers.video_parser import TiktokPost
-from src.utils import delay, extract_video_info, smart_delay
+from src.utils import delay, extract_video_info
 setup_logging()
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ class CrawlerKeyword:
                 logger.exception(f"[{keyword}] 🔥 Lỗi keyword")
                 continue
 
-            await delay(2000, 4000)
+            await delay(20000, 40000)
 
     # =======================
 
@@ -82,16 +82,16 @@ class CrawlerKeyword:
 
                 logger.info(f"[{keyword}] [{i+1}/{count}] {video_url}")
 
-                # ⛔ nếu đã tồn tại trong Redis thì bỏ qua
+                # Nếu đã tồn tại trong Redis thì bỏ qua
                 if not await CrawlerKeyword.should_crawl_video(redis_client, video_url):
-                    logger.info(f"SKIP (cached): {video_url}")
+                    logger.info(f"[{keyword}] SKIP (cached): {video_url}")
                     continue
 
                 post = await CrawlerKeyword._crawl_video(context, video_url)
                 if post:
                     results.append(post)
 
-                await delay(*smart_delay())
+                await delay(4000,8000)
 
             except Exception as e:
                 logger.error(f"[{keyword}] ❌ Lỗi item {i}: {e}")
@@ -157,8 +157,6 @@ class CrawlerKeyword:
 
             # Người dùng thường dừng xem
             await page.wait_for_timeout(random.randint(1800, 3200))
-
-            logger.info(f"Người scroll {i+1}, tổng: {count}")
 
     # @staticmethod
     # async def _handle_search_error(page, keyword):

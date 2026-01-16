@@ -1,6 +1,7 @@
 import asyncio
 import requests
 from playwright.async_api import async_playwright
+from src.crawler_keywords import CrawlerKeyword
 from src.crawlers.keyword_crawler import KeywordCrawler
 from src.crawlers.video_crawler import VideoCrawler
 from src.services.page_manager import PageManager
@@ -48,20 +49,21 @@ async def run_with_gpm():
 			keywords = json.load(f)
 		
 		await delay(1000, 2000)
-		# await CrawlerKeyword.crawler_keyword(context=context, page=page, keywords=keywords)
 
-		redis_dedup = RedisDedupService(redis_client)
-		pm = PageManager(context)
-		video_crawler = VideoCrawler(pm)
+		await CrawlerKeyword.crawler_keyword(context=context, page=page, keywords=keywords)
 
-		kc = KeywordCrawler(
-			context=context,
-			redis_dedup=redis_dedup,
-			video_crawler=video_crawler,
-			logger=logger
-		)
+		# redis_dedup = RedisDedupService(redis_client)
+		# pm = PageManager(context)
+		# video_crawler = VideoCrawler(pm)
 
-		await kc.crawl_keywords(page, keywords)
+		# kc = KeywordCrawler(
+		# 	context=context,
+		# 	redis_dedup=redis_dedup,
+		# 	video_crawler=video_crawler,
+		# 	logger=logger
+		# )
+
+		# await kc.crawl_keywords(page, keywords)
 
 
 async def run_test():
@@ -86,20 +88,20 @@ async def run_test():
 			with open("keywords.json", "r", encoding="utf8") as f:
 				keywords = json.load(f)
 
-			# await CrawlerKeyword.crawler_keyword(context=context, page=page, keywords=keywords)
+			await CrawlerKeyword.crawler_keyword(context=context, page=page, keywords=keywords)
 
-			redis_dedup = RedisDedupService(redis_client)
-			pm = PageManager(context)
-			video_crawler = VideoCrawler(pm)
+			# redis_dedup = RedisDedupService(redis_client)
+			# pm = PageManager(context)
+			# video_crawler = VideoCrawler(pm)
 
-			kc = KeywordCrawler(
-				context=context,
-				redis_dedup=redis_dedup,
-				video_crawler=video_crawler,
-				logger=logger
-			)
+			# kc = KeywordCrawler(
+			# 	context=context,
+			# 	redis_dedup=redis_dedup,
+			# 	video_crawler=video_crawler,
+			# 	logger=logger
+			# )
 
-			await kc.crawl_keywords(page, keywords)
+			# await kc.crawl_keywords(page, keywords)
 		finally:
 			await page.close()
 			await browser.close()
