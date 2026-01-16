@@ -42,15 +42,18 @@ async def run_with_gpm():
 		page = await context.new_page()
 
 		await delay(800, 1500)
-		
-		await page.goto("https://www.tiktok.com", timeout=60000)
-		logger.info("Đã vào TikTok bằng GPM profile")
-		with open("keywords.json", "r", encoding="utf8") as f:
-			keywords = json.load(f)
-		
-		await delay(1000, 2000)
+		try:
+			await page.goto("https://www.tiktok.com", timeout=60000)
+			logger.info("Đã vào TikTok bằng GPM profile")
+			with open("keywords.json", "r", encoding="utf8") as f:
+				keywords = json.load(f)
+			
+			await delay(1000, 2000)
 
-		await CrawlerKeyword.crawler_keyword(context=context, page=page, keywords=keywords)
+			await CrawlerKeyword.crawler_keyword(context=context, page=page, keywords=keywords)
+		finally:
+			await page.close()
+			await browser.close()
 
 		# redis_dedup = RedisDedupService(redis_client)
 		# pm = PageManager(context)
