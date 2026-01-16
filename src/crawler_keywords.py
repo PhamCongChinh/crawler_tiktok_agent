@@ -49,8 +49,6 @@ class CrawlerKeyword:
         await page.goto(url, wait_until="domcontentloaded", timeout=30000)
         await delay(2000, 5000)
 
-        # await CrawlerKeyword._handle_search_error(page, keyword)
-
         await page.locator('#tabs-0-tab-search_video').click()
 
         await delay(2000, 5000)
@@ -96,7 +94,6 @@ class CrawlerKeyword:
             except Exception as e:
                 logger.error(f"[{keyword}] ❌ Lỗi item {i}: {e}")
 
-        # await CrawlerKeyword._push_to_es(keyword, results)
         if results:
             await CrawlerKeyword._push_to_es(keyword, results)
             logger.info(f"[{keyword}] ✅ Đã push {len(results)} video vào ES")
@@ -157,19 +154,6 @@ class CrawlerKeyword:
 
             # Người dùng thường dừng xem
             await page.wait_for_timeout(random.randint(1800, 3200))
-
-    # @staticmethod
-    # async def _handle_search_error(page, keyword):
-    #     try:
-    #         error_box = page.locator("h2[data-e2e='search-error-title']")
-    #         if await error_box.is_visible():
-    #             logger.warning(f"[{keyword}] ⚠️ Search error")
-    #             btn = page.locator("button:has-text('Try again')")
-    #             if await btn.is_visible():
-    #                 await btn.click()
-    #                 await asyncio.sleep(2)
-    #     except Exception as e:
-    #         logger.debug(f"[{keyword}] Không có error box: {e}")
 
     @staticmethod
     async def _is_recent_item(item) -> bool:

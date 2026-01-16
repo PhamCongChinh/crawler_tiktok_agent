@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     REDIS_DB: int = 0
     REDIS_PASSWORD: str = ""
 
+    QUIET_HOURS_START: int = 0
+    QUIET_HOURS_END: int = 6
+
     class Config:
         env_file = ".env"
 

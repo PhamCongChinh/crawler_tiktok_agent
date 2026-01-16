@@ -1,12 +1,16 @@
 import asyncio
 import requests
 from playwright.async_api import async_playwright
-from src.config import redis_client
+from src.crawlers.keyword_crawler import KeywordCrawler
+from src.crawlers.video_crawler import VideoCrawler
+from src.services.page_manager import PageManager
+from src.services.redis_dedup import RedisDedupService
+from src.config.redis_client import redis_client
 from src.config.logging import setup_logging
 import logging
 
 
-from src.utils import delay
+from src.utils import delay, in_quiet_hours, seconds_until_quiet_end
 setup_logging()
 logger = logging.getLogger(__name__)
 import json
@@ -18,7 +22,7 @@ GPM_API = settings.GPM_API
 PROFILE_ID = settings.PROFILE_ID
 
 async def block_resources(route, request):
-	if request.resource_type in ("image", "font", "media", "stylesheet"):
+	if request.resource_type in ("image", "font"):
 		await route.abort()
 	else:
 		await route.continue_()
@@ -35,12 +39,7 @@ async def run_with_gpm():
 		context = browser.contexts[0]
 		await context.route("**/*", block_resources)
 
-		if context.pages:
-			page = context.pages[0]
-			logger.info("Dùng lại page cũ")
-		else:
-			page = await context.new_page()
-			logger.info("Tạo page mới")
+		page = await context.new_page()
 
 		await delay(800, 1500)
 		
@@ -50,7 +49,20 @@ async def run_with_gpm():
 			keywords = json.load(f)
 		
 		await delay(1000, 2000)
-		await CrawlerKeyword.crawler_keyword(context=context, page=page, keywords=keywords)
+		# await CrawlerKeyword.crawler_keyword(context=context, page=page, keywords=keywords)
+
+		redis_dedup = RedisDedupService(redis_client)
+		pm = PageManager(context)
+		video_crawler = VideoCrawler(pm)
+
+		kc = KeywordCrawler(
+			context=context,
+			redis_dedup=redis_dedup,
+			video_crawler=video_crawler,
+			logger=logger
+		)
+
+		await kc.crawl_keywords(page, keywords)
 
 
 async def run_test():
@@ -75,7 +87,20 @@ async def run_test():
 			with open("keywords.json", "r", encoding="utf8") as f:
 				keywords = json.load(f)
 
-			await CrawlerKeyword.crawler_keyword(context=context, page=page, keywords=keywords)
+			# await CrawlerKeyword.crawler_keyword(context=context, page=page, keywords=keywords)
+
+			redis_dedup = RedisDedupService(redis_client)
+			pm = PageManager(context)
+			video_crawler = VideoCrawler(pm)
+
+			kc = KeywordCrawler(
+				context=context,
+				redis_dedup=redis_dedup,
+				video_crawler=video_crawler,
+				logger=logger
+			)
+
+			await kc.crawl_keywords(page, keywords)
 		finally:
 			await page.close()
 			await browser.close()
@@ -83,17 +108,26 @@ async def run_test():
 	
 
 async def schedule():
-	logger.info(f"Redis Ping: {await redis_client.ping_redis()}")
 	MINUTE = settings.DELAY
 	INTERVAL = MINUTE * 60
 	while True:
+		if in_quiet_hours(settings.QUIET_HOURS_START, settings.QUIET_HOURS_END):
+			sleep_sec = seconds_until_quiet_end(
+				settings.QUIET_HOURS_START,
+				settings.QUIET_HOURS_END
+			)
+			logger.info(f"⏸ Nghỉ crawl tới {settings.QUIET_HOURS_END}:00 "
+						f"(ngủ {sleep_sec // 60} phút)")
+			await asyncio.sleep(sleep_sec)
+			continue
+
 		logger.info("---------------Bắt đầu chạy run() -----------------")
 		try:
 			if settings.DEBUG:
 				await run_test()
 			else:
 				await run_with_gpm()
-			
+
 			logger.info(f"=== Hoàn thành, chờ {MINUTE} phút ===")
 		except Exception as e:
 			logger.error(f"Lỗi trong run(): {e}")
