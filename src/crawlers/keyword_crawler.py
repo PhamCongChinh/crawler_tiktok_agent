@@ -1,6 +1,6 @@
 import time
 import urllib
-from src.utils import delay, smart_delay
+from src.utils import delay
 
 class KeywordCrawler:
     def __init__(self, context, redis_dedup, video_crawler, logger):

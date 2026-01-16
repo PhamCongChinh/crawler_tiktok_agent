@@ -15,7 +15,6 @@ setup_logging()
 logger = logging.getLogger(__name__)
 import json
 
-from src.crawler_keywords import CrawlerKeyword
 from src.config.settings import settings
 
 GPM_API = settings.GPM_API
