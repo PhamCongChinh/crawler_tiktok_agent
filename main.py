@@ -3,11 +3,6 @@ import requests
 from playwright.async_api import async_playwright
 from db.mongo import MongoDB
 from src.crawler_keywords import CrawlerKeyword
-from src.crawlers.keyword_crawler import KeywordCrawler
-from src.crawlers.video_crawler import VideoCrawler
-from src.services.page_manager import PageManager
-from src.services.redis_dedup import RedisDedupService
-from src.config.redis_client import redis_client
 from src.config.logging import setup_logging
 import logging
 
