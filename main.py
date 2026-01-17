@@ -41,13 +41,27 @@ async def run_with_gpm():
 		await context.route("**/*", block_resources)
 
 		page = await context.new_page()
-
-		await delay(800, 1500)
+		
 		try:
+			await delay(800, 1500)
 			await page.goto("https://www.tiktok.com", timeout=60000)
 			logger.info("Đã vào TikTok bằng GPM profile")
-			with open("keywords.json", "r", encoding="utf8") as f:
-				keywords = json.load(f)
+
+			db = MongoDB.get_db()
+			keyword_col = db.keyword
+
+			logger.info(f"Collection: {keyword_col.name}")
+			logger.info(f"Total docs: {keyword_col.count_documents({})}")
+
+			docs = keyword_col.find({
+				"org_id": {"$in": [2]}
+			})
+
+			keywords = []
+
+			for doc in docs:
+				doc["_id"] = str(doc["_id"])  # nếu cần
+				keywords.append(doc["keyword"])
 			
 			await delay(1000, 2000)
 
@@ -55,20 +69,6 @@ async def run_with_gpm():
 		finally:
 			await page.close()
 			await browser.close()
-
-		# redis_dedup = RedisDedupService(redis_client)
-		# pm = PageManager(context)
-		# video_crawler = VideoCrawler(pm)
-
-		# kc = KeywordCrawler(
-		# 	context=context,
-		# 	redis_dedup=redis_dedup,
-		# 	video_crawler=video_crawler,
-		# 	logger=logger
-		# )
-
-		# await kc.crawl_keywords(page, keywords)
-
 
 async def run_test():
 	async with async_playwright() as p:
@@ -111,18 +111,6 @@ async def run_test():
 
 			await CrawlerKeyword.crawler_keyword(context=context, page=page, keywords=keywords)
 
-			# redis_dedup = RedisDedupService(redis_client)
-			# pm = PageManager(context)
-			# video_crawler = VideoCrawler(pm)
-
-			# kc = KeywordCrawler(
-			# 	context=context,
-			# 	redis_dedup=redis_dedup,
-			# 	video_crawler=video_crawler,
-			# 	logger=logger
-			# )
-
-			# await kc.crawl_keywords(page, keywords)
 		finally:
 			await page.close()
 			await browser.close()
@@ -133,15 +121,15 @@ async def schedule():
 	MINUTE = settings.DELAY
 	INTERVAL = MINUTE * 60
 	while True:
-		# if in_quiet_hours(settings.QUIET_HOURS_START, settings.QUIET_HOURS_END):
-		# 	sleep_sec = seconds_until_quiet_end(
-		# 		settings.QUIET_HOURS_START,
-		# 		settings.QUIET_HOURS_END
-		# 	)
-		# 	logger.info(f"⏸ Nghỉ crawl tới {settings.QUIET_HOURS_END}:00 "
-		# 				f"(ngủ {sleep_sec // 60} phút)")
-		# 	await asyncio.sleep(sleep_sec)
-		# 	continue
+		if in_quiet_hours(settings.QUIET_HOURS_START, settings.QUIET_HOURS_END):
+			sleep_sec = seconds_until_quiet_end(
+				settings.QUIET_HOURS_START,
+				settings.QUIET_HOURS_END
+			)
+			logger.info(f"⏸ Nghỉ crawl tới {settings.QUIET_HOURS_END}:00 "
+						f"(ngủ {sleep_sec // 60} phút)")
+			await asyncio.sleep(sleep_sec)
+			continue
 
 		logger.info("---------------Bắt đầu chạy run() -----------------")
 		try:
