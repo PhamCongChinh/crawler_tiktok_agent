@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     QUIET_HOURS_START: int = 0
     QUIET_HOURS_END: int = 6
 
+    MONGO_URI: str = "mongodb://localhost:27017"
+    MONGO_DB: str = "test_db"
+
     class Config:
         env_file = ".env"
 

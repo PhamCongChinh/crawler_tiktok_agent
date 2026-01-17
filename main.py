@@ -1,6 +1,7 @@
 import asyncio
 import requests
 from playwright.async_api import async_playwright
+from db.mongo import MongoDB
 from src.crawler_keywords import CrawlerKeyword
 from src.crawlers.keyword_crawler import KeywordCrawler
 from src.crawlers.video_crawler import VideoCrawler
@@ -88,8 +89,25 @@ async def run_test():
 			await page.goto("https://www.tiktok.com", wait_until="domcontentloaded", timeout=60000)
 			logger.info("Đã vào trang chủ TikTok")
 
-			with open("keywords.json", "r", encoding="utf8") as f:
-				keywords = json.load(f)
+			# with open("keywords.json", "r", encoding="utf8") as f:
+			# 	keywords = json.load(f)
+			
+			db = MongoDB.get_db()
+			keyword_col = db.keyword
+
+			logger.info(f"Collection: {keyword_col.name}")
+			logger.info(f"Total docs: {keyword_col.count_documents({})}")
+
+			docs = keyword_col.find({
+				"org_id": {"$in": [2,236282]}
+			})
+
+			keywords = []
+
+			for doc in docs:
+				doc["_id"] = str(doc["_id"])  # nếu cần
+				keywords.append(doc["keyword"])
+
 
 			await CrawlerKeyword.crawler_keyword(context=context, page=page, keywords=keywords)
 
@@ -115,15 +133,15 @@ async def schedule():
 	MINUTE = settings.DELAY
 	INTERVAL = MINUTE * 60
 	while True:
-		if in_quiet_hours(settings.QUIET_HOURS_START, settings.QUIET_HOURS_END):
-			sleep_sec = seconds_until_quiet_end(
-				settings.QUIET_HOURS_START,
-				settings.QUIET_HOURS_END
-			)
-			logger.info(f"⏸ Nghỉ crawl tới {settings.QUIET_HOURS_END}:00 "
-						f"(ngủ {sleep_sec // 60} phút)")
-			await asyncio.sleep(sleep_sec)
-			continue
+		# if in_quiet_hours(settings.QUIET_HOURS_START, settings.QUIET_HOURS_END):
+		# 	sleep_sec = seconds_until_quiet_end(
+		# 		settings.QUIET_HOURS_START,
+		# 		settings.QUIET_HOURS_END
+		# 	)
+		# 	logger.info(f"⏸ Nghỉ crawl tới {settings.QUIET_HOURS_END}:00 "
+		# 				f"(ngủ {sleep_sec // 60} phút)")
+		# 	await asyncio.sleep(sleep_sec)
+		# 	continue
 
 		logger.info("---------------Bắt đầu chạy run() -----------------")
 		try:
