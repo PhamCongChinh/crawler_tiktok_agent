@@ -134,21 +134,20 @@ class CrawlerKeyword:
 
             # Move mouse nhẹ (giống người)
             await page.mouse.move(
-                random.randint(100, 700),
-                random.randint(150, 600)
+                random.randint(200, 600),
+                random.randint(200, 500)
             )
 
             # Scroll tới item cuối
             await locator.nth(count - 1).scroll_into_view_if_needed()
 
-            # ⏸️ Người dùng dừng xem video (đần đần 😄)
-            pause = random.randint(1500, 4500)
-            await page.wait_for_timeout(pause)
+            # dừng xem ngắn
+            await page.wait_for_timeout(random.randint(800, 1500))
 
             # 🔄 20% scroll ngược lại
             if random.random() < 0.2:
-                await page.mouse.wheel(0, -random.randint(200, 500))
-                await page.wait_for_timeout(random.randint(400, 900))
+                await page.mouse.wheel(0, -random.randint(150, 300))
+                await page.wait_for_timeout(random.randint(200, 400))
 
             # 😵‍💫 10% đứng im rất lâu (lướt mà quên scroll)
             if random.random() < 0.1:
@@ -156,7 +155,7 @@ class CrawlerKeyword:
                 await page.wait_for_timeout(long_pause)
 
             # Người dùng thường dừng xem
-            await page.wait_for_timeout(random.randint(1800, 3200))
+            await page.wait_for_timeout(random.randint(700, 1200))
 
     # @staticmethod
     # async def _handle_search_error(page, keyword):
