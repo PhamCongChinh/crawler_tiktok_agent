@@ -22,8 +22,8 @@ class CrawlerKeyword:
         logger.info(f"Đã tải {len(keywords)} từ khóa")
         await delay(2000, 4000)
 
-        for keyword in keywords:
-            logger.info(f"🔍 Bắt đầu crawl keyword: {keyword}")
+        for idx, keyword in enumerate(keywords, start=1):
+            logger.info(f"🔍 Bắt đầu crawl keyword {idx}/{len(keywords)}: {keyword}")
 
             try:
                 await CrawlerKeyword._crawl_single_keyword(
@@ -31,6 +31,11 @@ class CrawlerKeyword:
                     page=page,
                     keyword=keyword
                 )
+
+                if idx % 10 == 0:
+                    time_sleep = random.randint(180, 300)
+                    logger.warning(f"Đã crawl 10 keyword, nghỉ {time_sleep} giây")
+                    await asyncio.sleep(time_sleep)
 
             except Exception as e:
                 logger.exception(f"[{keyword}] 🔥 Lỗi keyword")
@@ -49,9 +54,8 @@ class CrawlerKeyword:
         await page.goto(url, wait_until="domcontentloaded", timeout=30000)
         await delay(2000, 5000)
 
-        # await CrawlerKeyword._handle_search_error(page, keyword)
-
-        await page.locator('#tabs-0-tab-search_video').click()
+        await page.get_by_role("button", name="Video").click()
+        # await page.locator('span', has_text='Video').click()
 
         await delay(2000, 5000)
 

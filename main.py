@@ -1,21 +1,24 @@
 import asyncio
+from pydantic import config
 import requests
 from playwright.async_api import async_playwright
-from db.mongo import MongoDB
+from src.db.mongo import MongoDB
 from src.crawler_keywords import CrawlerKeyword
 from src.config.logging import setup_logging
 import logging
 
 
-from src.utils import delay, in_quiet_hours, seconds_until_quiet_end
+from src.utils import delay
 setup_logging()
 logger = logging.getLogger(__name__)
-import json
 
 from src.config.settings import settings
 
-GPM_API = settings.GPM_API
-PROFILE_ID = settings.PROFILE_ID
+# GPM_API = settings.GPM_API
+# PROFILE_ID = settings.PROFILE_ID
+
+db = MongoDB.get_db()
+bot_config = db.tiktok_bot_configs
 
 async def block_resources(route, request):
 	if request.resource_type in ("image", "font"):
@@ -24,6 +27,10 @@ async def block_resources(route, request):
 		await route.continue_()
 
 async def run_with_gpm():
+	
+	GPM_API = bot_config.find_one({"bot_name": f"{settings.BOT_NAME}"}).get("gpm_api")
+	PROFILE_ID = bot_config.find_one({"bot_name": f"{settings.BOT_NAME}"}).get("profile_id")
+
 	resp = requests.get(f"{GPM_API}/profiles/start/{PROFILE_ID}")
 	resp.raise_for_status()
 	data = resp.json()["data"]
@@ -42,20 +49,29 @@ async def run_with_gpm():
 			await page.goto("https://www.tiktok.com", timeout=60000)
 			logger.info("Đã vào TikTok bằng GPM profile")
 
-			db = MongoDB.get_db()
+			# Config từ MongoDB
+			config = db.tiktok_bot_configs.find_one({"bot_name": f"{settings.BOT_NAME}"})
+			org_ids = config.get("org_id")
+			org_ids_int = [int(x) for x in org_ids]
+
+
+			# db = MongoDB.get_db()
 			keyword_col = db.keyword
 
 			logger.info(f"Collection: {keyword_col.name}")
 			logger.info(f"Total docs: {keyword_col.count_documents({})}")
 
+			# docs = keyword_col.find({
+			# 	"org_id": {"$in": [2]}
+			# })
 			docs = keyword_col.find({
-				"org_id": {"$in": [2]}
+				"org_id": {"$in": org_ids_int}
 			})
 
 			keywords = []
 
 			for doc in docs:
-				doc["_id"] = str(doc["_id"])  # nếu cần
+				doc["_id"] = str(doc["_id"])
 				keywords.append(doc["keyword"])
 			
 			await delay(1000, 2000)
@@ -81,28 +97,33 @@ async def run_test():
 		page = await context.new_page()
 		await delay(800, 1500)
 		try:
-			await page.goto("https://www.tiktok.com", wait_until="domcontentloaded", timeout=60000)
+			# await page.goto("https://www.tiktok.com", wait_until="domcontentloaded", timeout=60000)
 			logger.info("Đã vào trang chủ TikTok")
 
-			# with open("keywords.json", "r", encoding="utf8") as f:
-			# 	keywords = json.load(f)
-			
-			db = MongoDB.get_db()
+			# db = MongoDB.get_db()
+			config = db.tiktok_bot_configs.find_one({"bot_name": f"{settings.BOT_NAME}"})
+			org_ids = config.get("org_id")
+
+			print("Keywords to crawl:", org_ids)
+
+			org_ids_int = [int(x) for x in org_ids]
+
+			print("Org IDs as integers:", org_ids_int)
+
 			keyword_col = db.keyword
 
 			logger.info(f"Collection: {keyword_col.name}")
 			logger.info(f"Total docs: {keyword_col.count_documents({})}")
 
 			docs = keyword_col.find({
-				"org_id": {"$in": [2,236282]}
+				"org_id": {"$in": org_ids_int}
 			})
 
 			keywords = []
 
 			for doc in docs:
-				doc["_id"] = str(doc["_id"])  # nếu cần
+				doc["_id"] = str(doc["_id"])
 				keywords.append(doc["keyword"])
-
 
 			await CrawlerKeyword.crawler_keyword(context=context, page=page, keywords=keywords)
 

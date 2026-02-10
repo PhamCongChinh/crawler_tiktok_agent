@@ -38,7 +38,6 @@ LOGGING_CONFIG = {
     },
 
     "handlers": {
-        # File handler viết ra file, không màu
         "file": {
             "class": "logging.handlers.TimedRotatingFileHandler",
             "level": "INFO",
@@ -46,7 +45,7 @@ LOGGING_CONFIG = {
             "filename": "logs/app.log",
             "when": "midnight",      # mỗi ngày
             "interval": 1,
-            "backupCount": 3,       # giữ 3 ngày
+            "backupCount": 2,
             "encoding": "utf-8",
         },
     },
@@ -65,12 +64,10 @@ LOGGING_CONFIG = {
 def setup_logging():
     logging.config.dictConfig(LOGGING_CONFIG)
 
-    # Console handler màu
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.INFO)
     console_handler.setFormatter(
         ColorFormatter("%(asctime)s |  %(levelname)s - %(message)s")
     )
 
-    # Gắn vào root logger
     logging.getLogger("").addHandler(console_handler)
