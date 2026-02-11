@@ -45,6 +45,9 @@ async def block_resources(route, request):
 	else:
 		await route.continue_()
 
+async def human_delay(min_ms=800, max_ms=1500):
+	await asyncio.sleep(random.uniform(min_ms / 1000, max_ms / 1000))
+
 async def run_with_gpm():
 	
 	GPM_API = bot_config.find_one({"bot_name": f"{settings.BOT_NAME}"}).get("gpm_api")
@@ -241,8 +244,7 @@ async def run_test():
 		# 	await browser.close()
 
 
-async def human_delay(min_ms=800, max_ms=1500):
-	await asyncio.sleep(random.uniform(min_ms / 1000, max_ms / 1000))
+
 
 async def run_test_1():
 	async with async_playwright() as p:
