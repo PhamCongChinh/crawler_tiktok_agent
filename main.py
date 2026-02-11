@@ -53,13 +53,18 @@ async def run_with_gpm():
 	GPM_API = bot_config.find_one({"bot_name": f"{settings.BOT_NAME}"}).get("gpm_api")
 	PROFILE_ID = bot_config.find_one({"bot_name": f"{settings.BOT_NAME}"}).get("profile_id")
 
+	# ===== START PROFILE =====
 	resp = requests.get(f"{GPM_API}/profiles/start/{PROFILE_ID}")
 	resp.raise_for_status()
+
 	data = resp.json()["data"]
 	debug_addr = data["remote_debugging_address"]
 
 	async with async_playwright() as p:
 		browser = await p.chromium.connect_over_cdp(f"http://{debug_addr}")
+
+		if not browser.contexts:
+			raise Exception("❌ No browser context found from GPM")
 
 		context = browser.contexts[0]
 		await context.route("**/*", block_resources)
@@ -102,6 +107,9 @@ async def run_with_gpm():
 				"org_id": {"$in": org_ids_int}
 			})
 
+			keywords_count = [doc["keyword"] for doc in docs]
+			logger.info(f"Total keywords: {len(keywords_count)}")
+
 			keywords = []
 
 			for doc in docs:
@@ -110,52 +118,44 @@ async def run_with_gpm():
 			
 			await delay(1000, 2000)
 
+			search_btn = page.locator('button[data-e2e="nav-search"]')
+			await search_btn.wait_for(state="visible", timeout=15000)
+			await human_delay(1500, 2500)
+			await search_btn.click()
+			await human_delay(1500, 2500)
+
+			search_input = page.locator(
+				'form[data-e2e="search-box"] input[data-e2e="search-user-input"]:visible'
+			).first
+
+			await search_input.wait_for(state="visible", timeout=15000)
+
 			for idx, keyword in enumerate(keywords, start=1):
 				logger.info(f"🔍 Bắt đầu crawl keyword {idx}/{len(keywords)}: {keyword}")
 
-				# items = []
-
-				# # Bắt response XHR
-				# async def handle_response(response):
-				# 	if SEARCH_API in response.url and response.request.method == "GET":
-				# 		try:
-				# 			json_data = await response.json()
-				# 			for row in json_data.get("data", []):
-				# 				if row.get("type") == 1 and "item" in row:
-				# 					items.append(row["item"])
-				# 		except Exception as e:
-				# 			print("❌ Parse error:", e)
-
-				# page.on("response", handle_response)
-
 				print(f"🔍 Search keyword: {keyword}")
 
-				search_btn = page.locator('button[data-e2e="nav-search"]')
-				await search_btn.wait_for(state="visible", timeout=15000)
-				await human_delay(1500, 2500)
-				await search_btn.click()
-				print("Clicked search button")
-				await human_delay(1500, 2500)
-
-				# search_input = page.locator(
-				# 	'input[data-e2e="search-user-input"]:visible'
-				# ).first
-				search_input = page.locator(
-					'form[data-e2e="search-box"] input[data-e2e="search-user-input"]:visible'
-				).first
-				print("Got search input")
+				items.clear()
 				await search_input.click()
+
+				 # clear old text
+				await page.keyboard.press("Control+A")
+				await page.keyboard.press("Backspace")
 
 				await human_delay(500, 1000)
 				await page.keyboard.type(keyword, delay=120)
 				await human_delay(500, 1000)
 				await page.keyboard.press("Enter")
-				await page.wait_for_timeout(5000)
+				await page.wait_for_timeout(6000)
 
 
 				print(f"✅ Got {len(items)} items")
+
+				if not items:
+					continue
+				
 				results = []
-				for item in data:
+				for item in items:
 					video_info = {
 						"video_id": item.get("id"),
 						"description": item.get("desc"),
