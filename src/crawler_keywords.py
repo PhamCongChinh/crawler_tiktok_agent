@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime
 import json
 import time
 import random
@@ -14,6 +15,14 @@ from src.parsers.video_parser import TiktokPost
 from src.utils import delay, extract_video_info
 setup_logging()
 logger = logging.getLogger(__name__)
+
+from collections import defaultdict
+API_FILTERS = [
+    "/api/search",
+    "/api/post",
+    "/api/item_list",
+    "/api/recommend"
+]
 
 class CrawlerKeyword:
 
@@ -32,6 +41,9 @@ class CrawlerKeyword:
                     keyword=keyword
                 )
 
+                # Nghỉ giữa các từ khóa
+                await asyncio.sleep(5000000000000)
+
                 if idx % 10 == 0:
                     time_sleep = random.randint(180, 300)
                     logger.warning(f"Đã crawl 10 keyword, nghỉ {time_sleep} giây")
@@ -47,6 +59,7 @@ class CrawlerKeyword:
 
     @staticmethod
     async def _crawl_single_keyword(context, page, keyword: str):
+        await delay(2000, 5000)
         unix_time = int(time.time())
         encoded = urllib.parse.quote(keyword)
         url = f"https://www.tiktok.com/search?q={encoded}&t={unix_time}"
@@ -54,60 +67,113 @@ class CrawlerKeyword:
         await page.goto(url, wait_until="domcontentloaded", timeout=30000)
         await delay(2000, 5000)
 
+        # a = await CrawlerKeyword.capture_xhr(page)
+        # print(a)
         await page.get_by_role("button", name="Video").click()
-        # await page.locator('span', has_text='Video').click()
 
-        await delay(2000, 5000)
+        xhr_calls = defaultdict(dict)
 
-        locator = page.locator("[id^='grid-item-container-']")
+        async def on_request(req):
+            if any(api in req.url for api in API_FILTERS):
+                xhr_calls[req.url]["request"] = {
+                    "method": req.method,
+                    "headers": req.headers,
+                    "payload": req.post_data,
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+
+        async def on_response(res):
+            if any(api in res.url for api in API_FILTERS):
+                try:
+                    body = await res.json()
+                except:
+                    body = None
+
+                xhr_calls[res.url]["response"] = {
+                    "status": res.status,
+                    "headers": res.headers,
+                    "body": body,
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+
+        page.on("request", on_request)
+        page.on("response", on_response)
+
+        with open("xhr_calls.json", "w", encoding="utf-8") as f:
+            json.dump(xhr_calls, f, ensure_ascii=False, indent=2)
+
+        print(f"✅ Done. Captured {len(xhr_calls)} API calls")
+
+        # _xhr_calls = response.scrape_result["browser_data"]["xhr_call"]
 
 
-        # Scroll 5 lần để load video
-        await CrawlerKeyword.human_scroll(page, locator, times=5)
 
-        count = await locator.count()
-        logger.info(f"[{keyword}] Tổng video sau scroll: {count}")
+        # await page.get_by_role("button", name="Video").click()
+        # # await page.locator('span', has_text='Video').click()
 
-        results = []
+        # await delay(2000, 5000)
 
-        for i in range(count):
-            item = locator.nth(i)
+        # locator = page.locator("[id^='grid-item-container-']")
 
-            try:
-                if not await CrawlerKeyword._is_recent_item(item):
-                    continue
 
-                await item.scroll_into_view_if_needed()
-                await delay(300, 600)
+        # # Scroll 5 lần để load video
+        # await CrawlerKeyword.human_scroll(page, locator, times=5)
 
-                video_url = await CrawlerKeyword._get_video_url(item)
-                if not video_url:
-                    continue
+        # count = await locator.count()
+        # logger.info(f"[{keyword}] Tổng video sau scroll: {count}")
 
-                logger.info(f"[{keyword}] [{i+1}/{count}] {video_url}")
+        # results = []
 
-                # Nếu đã tồn tại trong Redis thì bỏ qua
-                if not await CrawlerKeyword.should_crawl_video(redis_client, video_url):
-                    logger.info(f"[{keyword}] SKIP (cached): {video_url}")
-                    continue
+        # for i in range(count):
+        #     item = locator.nth(i)
 
-                post = await CrawlerKeyword._crawl_video(context, video_url)
-                if post:
-                    results.append(post)
+        #     try:
+        #         if not await CrawlerKeyword._is_recent_item(item):
+        #             continue
 
-                await delay(4000,8000)
+        #         await item.scroll_into_view_if_needed()
+        #         await delay(300, 600)
 
-            except Exception as e:
-                logger.error(f"[{keyword}] ❌ Lỗi item {i}: {e}")
+        #         video_url = await CrawlerKeyword._get_video_url(item)
+        #         if not video_url:
+        #             continue
 
-        # await CrawlerKeyword._push_to_es(keyword, results)
-        if results:
-            await CrawlerKeyword._push_to_es(keyword, results)
-            logger.info(f"[{keyword}] ✅ Đã push {len(results)} video vào ES")
-        else:
-            logger.warning(f"[{keyword}] ⚠️ Không có video hợp lệ để push")
+        #         logger.info(f"[{keyword}] [{i+1}/{count}] {video_url}")
+
+        #         # Nếu đã tồn tại trong Redis thì bỏ qua
+        #         if not await CrawlerKeyword.should_crawl_video(redis_client, video_url):
+        #             logger.info(f"[{keyword}] SKIP (cached): {video_url}")
+        #             continue
+
+        #         post = await CrawlerKeyword._crawl_video(context, video_url)
+        #         if post:
+        #             results.append(post)
+
+        #         await delay(4000,8000)
+
+        #     except Exception as e:
+        #         logger.error(f"[{keyword}] ❌ Lỗi item {i}: {e}")
+
+        # # await CrawlerKeyword._push_to_es(keyword, results)
+        # if results:
+        #     await CrawlerKeyword._push_to_es(keyword, results)
+        #     logger.info(f"[{keyword}] ✅ Đã push {len(results)} video vào ES")
+        # else:
+        #     logger.warning(f"[{keyword}] ⚠️ Không có video hợp lệ để push")
 
     # =======================
+
+    @staticmethod
+    async def capture_xhr(page):
+        async def on_response(response):
+            if "api/search" in response.url:
+                try:
+                    data = await response.json()
+                    print(data)
+                except:
+                    pass
+
+        page.on("response", on_response)
 
     @staticmethod
     def video_key(video_url: str) -> str:
