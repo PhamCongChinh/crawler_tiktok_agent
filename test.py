@@ -70,26 +70,13 @@ async def crawl_search(keyword: str):
 		await human_delay(500, 1000)
 		await page.keyboard.press("Enter")
 
-		# ======================
-		# SEARCH LOOP
-		# ======================
-		# for kw in KEYWORDS:
-		# 	print(f"🔍 Search keyword: {kw}")
-
-		# 	await search_input.fill("")
-		# 	await human_delay(800, 1500)
-
-		# 	await search_input.type(kw, delay=120)
-		# 	await page.keyboard.press("Enter")
-
-		# 	# chờ XHR bắn
-		# 	await page.wait_for_timeout(6000)
-		# 	await human_delay(1500, 2500)
-
 		await page.wait_for_timeout(5000)
 
 		# await browser.close()
 		return items
+
+
+
 
 
 async def main():

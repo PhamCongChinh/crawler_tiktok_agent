@@ -66,20 +66,20 @@ async def run_with_gpm():
 
 		page = await context.new_page()
 
-		# items = []
+		items = []
 
-		# # Bắt response XHR
-		# async def handle_response(response):
-		# 	if SEARCH_API in response.url and response.request.method == "GET":
-		# 		try:
-		# 			json_data = await response.json()
-		# 			for row in json_data.get("data", []):
-		# 				if row.get("type") == 1 and "item" in row:
-		# 					items.append(row["item"])
-		# 		except Exception as e:
-		# 			print("❌ Parse error:", e)
+		# Bắt response XHR
+		async def handle_response(response):
+			if SEARCH_API in response.url and response.request.method == "GET":
+				try:
+					json_data = await response.json()
+					for row in json_data.get("data", []):
+						if row.get("type") == 1 and "item" in row:
+							items.append(row["item"])
+				except Exception as e:
+					print("❌ Parse error:", e)
 
-		# page.on("response", handle_response)
+		page.on("response", handle_response)
 		
 		try:
 			await delay(800, 1500)
@@ -113,20 +113,20 @@ async def run_with_gpm():
 			for idx, keyword in enumerate(keywords, start=1):
 				logger.info(f"🔍 Bắt đầu crawl keyword {idx}/{len(keywords)}: {keyword}")
 
-				items = []
+				# items = []
 
-				# Bắt response XHR
-				async def handle_response(response):
-					if SEARCH_API in response.url and response.request.method == "GET":
-						try:
-							json_data = await response.json()
-							for row in json_data.get("data", []):
-								if row.get("type") == 1 and "item" in row:
-									items.append(row["item"])
-						except Exception as e:
-							print("❌ Parse error:", e)
+				# # Bắt response XHR
+				# async def handle_response(response):
+				# 	if SEARCH_API in response.url and response.request.method == "GET":
+				# 		try:
+				# 			json_data = await response.json()
+				# 			for row in json_data.get("data", []):
+				# 				if row.get("type") == 1 and "item" in row:
+				# 					items.append(row["item"])
+				# 		except Exception as e:
+				# 			print("❌ Parse error:", e)
 
-				page.on("response", handle_response)
+				# page.on("response", handle_response)
 
 				print(f"🔍 Search keyword: {keyword}")
 
