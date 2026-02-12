@@ -1,8 +1,12 @@
 import os
 import httpx
 from src.config.settings import settings
+from src.db.mongo import MongoDB
+db = MongoDB.get_db()
+bot_config = db.tiktok_bot_configs
+config = bot_config.find_one({"bot_name": settings.BOT_NAME})
 
-URL_UNCLASSIFIED = f"{settings.API}/api/v1/posts/insert-unclassified-org-posts"
+URL_UNCLASSIFIED = f"{config['api_master']}/api/v1/posts/insert-unclassified-org-posts"
 
 async def postToESUnclassified(content: any) -> any:
     total = len(content)

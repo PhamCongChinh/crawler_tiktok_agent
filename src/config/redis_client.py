@@ -1,11 +1,19 @@
 import redis.asyncio as aioredis
-from src.config.settings import settings
+# from src.config.settings import settings
+
+# redis_client = aioredis.Redis(
+#     host=settings.REDIS_HOST,
+#     port=settings.REDIS_PORT,
+#     db=settings.REDIS_DB,
+#     password=settings.REDIS_PASSWORD
+# )
+
 
 redis_client = aioredis.Redis(
-    host=settings.REDIS_HOST,
-    port=settings.REDIS_PORT,
-    db=settings.REDIS_DB,
-    password=settings.REDIS_PASSWORD
+    host="localhost",
+    port="6379",
+    db="0",
+    password=""
 )
 
 async def get_redis_client():
