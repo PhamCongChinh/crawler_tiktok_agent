@@ -374,7 +374,6 @@ async def crawl_tiktok_search(context, KEYWORDS, API_FILTERS):
 	# ==========================
 	# OPEN TIKTOK HOME
 	# ==========================
-	logger.info("🚀 Open TikTok")
 	await page.goto("https://www.tiktok.com", timeout=60000)
 	await page.wait_for_load_state("domcontentloaded")
 	await page.wait_for_timeout(5000)
@@ -384,9 +383,7 @@ async def crawl_tiktok_search(context, KEYWORDS, API_FILTERS):
 	# ==========================
 	for keyword in KEYWORDS:
 
-		print(f"\n==============================")
 		logger.info(f"🔍 Search keyword: {keyword}")
-		print(f"==============================")
 
 		current_keyword = keyword
 		videos_by_keyword[keyword] = []
@@ -458,7 +455,7 @@ async def crawl_tiktok_search(context, KEYWORDS, API_FILTERS):
 		# reset keyword để tránh API call trễ
 		current_keyword = None
 
-		await delay(10000, 20000)
+		await delay(60000, 120000)
 
 	logger.info("\n🎉 Done crawling all keywords")
 	page.close()
