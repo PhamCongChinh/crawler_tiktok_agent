@@ -3,12 +3,15 @@ import random
 import time
 
 from playwright.async_api import async_playwright
+import urllib
+
+from pymongo import response
 
 from src.api import postToESUnclassified
 from src.parsers.video_parser import TiktokPost
 
 
-SEARCH_API = "/api/search/general/full/"
+SEARCH_API = "/api/search"
 KEYWORDS = ["python"]
 
 async def human_delay(min_ms=800, max_ms=1500):
@@ -33,6 +36,10 @@ async def crawl_search(keyword: str):
 
 		# Bắt response XHR
 		async def handle_response(response):
+			# print("👉", response.request.resource_type, response.url)
+			if "search" in response.url:
+				print("🔎 Found search:", response.url)
+
 			if SEARCH_API in response.url and response.request.method == "GET":
 				try:
 					json_data = await response.json()
@@ -46,31 +53,49 @@ async def crawl_search(keyword: str):
 
 		print("🚀 Open TikTok")
 		await page.goto("https://www.tiktok.com", timeout=60000)
+		await page.wait_for_load_state("domcontentloaded")
+		await page.wait_for_timeout(3000)
 
 		print(f"🔍 Search keyword: {keyword}")
 
-		search_btn = page.locator('button[data-e2e="nav-search"]')
-		await search_btn.wait_for(state="visible", timeout=15000)
-		await human_delay(1500, 2500)
-		await search_btn.click()
-		print("Clicked search button")
-		await human_delay(1500, 2500)
+		# search_btn = page.locator('button[data-e2e="nav-search"]')
+		# await search_btn.wait_for(state="visible", timeout=15000)
+		# await human_delay(1500, 2500)
+		# await search_btn.click()
+		# print("Clicked search button")
+		# await human_delay(1500, 2500)
 
 		# search_input = page.locator(
 		# 	'input[data-e2e="search-user-input"]:visible'
 		# ).first
-		search_input = page.locator(
-			'form[data-e2e="search-box"] input[data-e2e="search-user-input"]:visible'
-		).first
-		print("Got search input")
-		await search_input.click()
+		# search_input = page.locator(
+		# 	'form[data-e2e="search-box"] input[data-e2e="search-user-input"]:visible'
+		# ).first
+		# print("Got search input")
+		# await search_input.click()
 
-		await human_delay(500, 1000)
-		await page.keyboard.type(keyword, delay=120)
-		await human_delay(500, 1000)
-		await page.keyboard.press("Enter")
+		# await human_delay(500, 1000)
+		# await page.keyboard.type(keyword, delay=120)
+		# await human_delay(500, 1000)
+		# await page.keyboard.press("Enter")
 
-		await page.wait_for_timeout(5000)
+		# await page.get_by_role("button", name="Video").click()
+
+		# for _ in range(5):
+		# 	await page.mouse.wheel(0, 4000)
+		# 	await page.wait_for_timeout(2000)
+
+		unix_time = int(time.time() * 1000)
+		encoded = urllib.parse.quote(keyword)
+		url = f"https://www.tiktok.com/search/video?q={encoded}&t={unix_time}"
+
+		await page.goto(url, timeout=30000)
+		await page.wait_for_load_state("domcontentloaded")
+		await page.wait_for_timeout(3000)
+
+		print("Waiting for results...")
+
+		await page.wait_for_timeout(10000)
 
 		# await browser.close()
 		return items

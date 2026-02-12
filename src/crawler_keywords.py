@@ -60,7 +60,7 @@ class CrawlerKeyword:
     @staticmethod
     async def _crawl_single_keyword(context, page, keyword: str):
         await delay(2000, 5000)
-        unix_time = int(time.time())
+        unix_time = int(time.time() * 1000)
         encoded = urllib.parse.quote(keyword)
         url = f"https://www.tiktok.com/search?q={encoded}&t={unix_time}"
 
@@ -69,6 +69,7 @@ class CrawlerKeyword:
 
         # a = await CrawlerKeyword.capture_xhr(page)
         # print(a)
+
         await page.get_by_role("button", name="Video").click()
 
         xhr_calls = defaultdict(dict)
@@ -99,7 +100,7 @@ class CrawlerKeyword:
         page.on("request", on_request)
         page.on("response", on_response)
 
-        with open("xhr_calls.json", "w", encoding="utf-8") as f:
+        with open("xhr_calls123.json", "w", encoding="utf-8") as f:
             json.dump(xhr_calls, f, ensure_ascii=False, indent=2)
 
         print(f"✅ Done. Captured {len(xhr_calls)} API calls")
