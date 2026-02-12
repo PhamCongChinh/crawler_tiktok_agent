@@ -102,42 +102,63 @@ async def run_with_gpm():
 	data = resp.json()["data"]
 	debug_addr = data["remote_debugging_address"]
 
-	async with async_playwright() as p:
-		browser = await p.chromium.connect_over_cdp(f"http://{debug_addr}")
+	browser = None
 
-		if not browser.contexts:
-			raise Exception("No browser context found from GPM")
+	try:
 
-		context = browser.contexts[0]
-		await context.route("**/*", block_resources)
+		async with async_playwright() as p:
+			browser = await p.chromium.connect_over_cdp(f"http://{debug_addr}")
 
-		# Config từ MongoDB
-		config = db.tiktok_bot_configs.find_one({"bot_name": settings.BOT_NAME})
+			if not browser.contexts:
+				raise Exception("No browser context found from GPM")
 
-		if not config:
-			raise ValueError("Bot config not found")
+			context = browser.contexts[0]
+			# await context.route("**/*", block_resources)
 
-		org_ids = config.get("org_id", [])
-		org_ids_int = [int(x) for x in org_ids]
+			# Config từ MongoDB
+			config = db.tiktok_bot_configs.find_one({"bot_name": settings.BOT_NAME})
 
-		keyword_col = db.keyword
+			if not config:
+				raise ValueError("Bot config not found")
 
-		docs = list(keyword_col.find({
-			"org_id": {"$in": org_ids_int}
-		}))
+			org_ids = config.get("org_id", [])
+			org_ids_int = [int(x) for x in org_ids]
 
-		logger.info(f"Collection: {keyword_col.name}")
-		logger.info(f"Total keywords: {len(docs)}")
+			keyword_col = db.keyword
 
-		keywords = []
+			docs = list(keyword_col.find({
+				"org_id": {"$in": org_ids_int}
+			}))
 
-		for doc in docs:
-			doc["_id"] = str(doc["_id"])
-			keywords.append(doc["keyword"])
+			logger.info(f"Collection: {keyword_col.name}")
+			logger.info(f"Total keywords: {len(docs)}")
 
-		await delay(1000, 2000)
-		await crawl_tiktok_search(context, keywords, API_FILTERS)
-		await delay(60000, 120000)
+			keywords = []
+
+			for doc in docs:
+				doc["_id"] = str(doc["_id"])
+				keywords.append(doc["keyword"])
+
+			await delay(1000, 2000)
+			await crawl_tiktok_search(context, keywords, API_FILTERS)
+
+	except Exception as e:
+		logger.exception(f"Error in run_with_gpm(): {e}")
+
+	finally:
+		# Đóng browser nếu còn mở
+		try:
+			if browser:
+				await browser.close()
+		except:
+			pass
+
+		# Stop GPM profile
+		try:
+			requests.get(f"{GPM_API}/profiles/stop/{PROFILE_ID}")
+			logger.info("GPM profile stopped")
+		except Exception as e:
+			logger.error(f"Failed to stop GPM profile: {e}")
 
 async def run_test():
 	async with async_playwright() as p:
@@ -453,7 +474,7 @@ async def crawl_tiktok_search(context, KEYWORDS, API_FILTERS):
 		await delay(60000, 120000)
 
 	logger.info("\n🎉 Done crawling all keywords")
-	page.close()
+	await page.close()
 
 async def schedule():
 	MINUTE = settings.DELAY
