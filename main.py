@@ -111,154 +111,33 @@ async def run_with_gpm():
 		context = browser.contexts[0]
 		await context.route("**/*", block_resources)
 
-			# Config từ MongoDB
-		config = db.tiktok_bot_configs.find_one({"bot_name": f"{settings.BOT_NAME}"})
-		org_ids = config.get("org_id")
+		# Config từ MongoDB
+		config = db.tiktok_bot_configs.find_one({"bot_name": settings.BOT_NAME})
+
+		if not config:
+			raise ValueError("Bot config not found")
+
+		org_ids = config.get("org_id", [])
 		org_ids_int = [int(x) for x in org_ids]
 
-
-			# db = MongoDB.get_db()
 		keyword_col = db.keyword
 
-		logger.info(f"Collection: {keyword_col.name}")
-		logger.info(f"Total docs: {keyword_col.count_documents({})}")
-
-		docs = keyword_col.find({
+		docs = list(keyword_col.find({
 			"org_id": {"$in": org_ids_int}
-		})
+		}))
 
-		keywords_count = [doc["keyword"] for doc in docs]
-		logger.info(f"Total keywords: {len(keywords_count)}")
+		logger.info(f"Collection: {keyword_col.name}")
+		logger.info(f"Total keywords: {len(docs)}")
 
 		keywords = []
 
 		for doc in docs:
 			doc["_id"] = str(doc["_id"])
 			keywords.append(doc["keyword"])
-			
+
 		await delay(1000, 2000)
-
 		await crawl_tiktok_search(context, keywords, API_FILTERS)
-
-
-		# items = []
-
-		# # Bắt response XHR
-		# async def handle_response(response):
-		# 	if SEARCH_API in response.url and response.request.method == "GET":
-		# 		try:
-		# 			json_data = await response.json()
-		# 			for row in json_data.get("data", []):
-		# 				if row.get("type") == 1 and "item" in row:
-		# 					items.append(row["item"])
-		# 		except Exception as e:
-		# 			print("❌ Parse error:", e)
-
-		# page.on("response", handle_response)
-		
-		# try:
-		# 	await delay(800, 1500)
-		# 	await page.goto("https://www.tiktok.com", timeout=60000)
-		# 	logger.info("Đã vào TikTok bằng GPM profile")
-
-		# 	# Config từ MongoDB
-		# 	config = db.tiktok_bot_configs.find_one({"bot_name": f"{settings.BOT_NAME}"})
-		# 	org_ids = config.get("org_id")
-		# 	org_ids_int = [int(x) for x in org_ids]
-
-
-		# 	# db = MongoDB.get_db()
-		# 	keyword_col = db.keyword
-
-		# 	logger.info(f"Collection: {keyword_col.name}")
-		# 	logger.info(f"Total docs: {keyword_col.count_documents({})}")
-
-		# 	docs = keyword_col.find({
-		# 		"org_id": {"$in": org_ids_int}
-		# 	})
-
-		# 	keywords_count = [doc["keyword"] for doc in docs]
-		# 	logger.info(f"Total keywords: {len(keywords_count)}")
-
-		# 	keywords = []
-
-		# 	for doc in docs:
-		# 		doc["_id"] = str(doc["_id"])
-		# 		keywords.append(doc["keyword"])
-			
-		# 	await delay(1000, 2000)
-
-			# search_btn = page.locator('button[data-e2e="nav-search"]')
-			# await search_btn.wait_for(state="visible", timeout=15000)
-			# await human_delay(1500, 2500)
-			# await search_btn.click()
-			# await human_delay(1500, 2500)
-
-			# search_input = page.locator(
-			# 	'form[data-e2e="search-box"] input[data-e2e="search-user-input"]:visible'
-			# ).first
-
-			# # await search_input.wait_for(state="visible", timeout=15000)
-
-			# for idx, keyword in enumerate(keywords, start=1):
-			# 	logger.info(f"🔍 Bắt đầu crawl keyword {idx}/{len(keywords)}: {keyword}")
-
-			# 	print(f"🔍 Search keyword: {keyword}")
-
-			# 	items.clear()
-			# 	await search_input.click()
-
-			# 	 # clear old text
-			# 	await page.keyboard.press("Control+A")
-			# 	await page.keyboard.press("Backspace")
-
-			# 	await human_delay(500, 1000)
-			# 	await page.keyboard.type(keyword, delay=120)
-			# 	await human_delay(500, 1000)
-			# 	await page.keyboard.press("Enter")
-			# 	await page.wait_for_timeout(6000)
-
-
-			# 	print(f"✅ Got {len(items)} items")
-
-			# 	if not items:
-			# 		continue
-
-			# 	results = []
-			# 	for item in items:
-			# 		video_info = {
-			# 			"video_id": item.get("id"),
-			# 			"description": item.get("desc"),
-			# 			"pub_time": int(item.get("createTime")),
-			# 			"unique_id": item.get("author", {}).get("uniqueId", ""),
-			# 			"auth_id": item.get("author", {}).get("id", 0),
-			# 			"auth_name": item.get("author", {}).get("nickname", ""),
-			# 			"comments": item.get("stats", {}).get("commentCount", 0),
-			# 			"shares": item.get("stats", {}).get("shareCount", 0),
-			# 			"reactions": item.get("stats", {}).get("diggCount", 0),
-			# 			"favors": item.get("stats", {}).get("collectCount", 0),
-			# 			"views": item.get("stats", {}).get("playCount", 0)
-			# 		}
-
-			# 		data = TiktokPost().new(video_info)
-			# 		results.append(data)
-
-			# 	print(f"✅ Parsed {len(results)} posts, posting to ES...")
-			# 	print("Sample post:", results[:3])
-
-			# 	try:
-			# 		result = await postToESUnclassified(results)
-			# 		print("✅ Posted to ES:", result)
-			# 	except Exception as e:
-			# 		print("❌ Error posting to ES:", e)
-
-			# 	await human_delay(10000, 20000)
-
-
-			# await CrawlerKeyword.crawler_keyword(context=context, page=page, keywords=keywords)
-		# finally:
-			# await page.close()
-			# await browser.close()
+		await delay(60000, 120000)
 
 async def run_test():
 	async with async_playwright() as p:
@@ -310,9 +189,6 @@ async def run_test():
 		# finally:
 		# 	await page.close()
 		# 	await browser.close()
-
-
-
 
 async def run_test_1():
 	async with async_playwright() as p:
@@ -430,14 +306,12 @@ async def run_test_1():
 
 		# await human_delay(10000, 20000)
 
-###################
+
 async def crawl_tiktok_search(context, KEYWORDS, API_FILTERS):
 
 	page = await context.new_page()
-
 	# ==========================
-	# GLOBAL STATE
-	# ==========================
+	# XHR COLLECTOR
 	current_keyword = None
 	videos_by_keyword = defaultdict(list)
 	seen_ids_by_keyword = defaultdict(set)
@@ -445,22 +319,22 @@ async def crawl_tiktok_search(context, KEYWORDS, API_FILTERS):
 	# ==========================
 	# HUMAN SCROLL
 	# ==========================
-	async def human_scroll(page, max_scroll=10):
-		last_count = 0
+	# async def human_scroll(page, max_scroll=10):
+	# 	last_count = 0
 
-		for i in range(max_scroll):
-			await page.mouse.wheel(0, random.randint(3000, 6000))
-			await page.wait_for_timeout(random.randint(2000, 3500))
+	# 	for i in range(max_scroll):
+	# 		await page.mouse.wheel(0, random.randint(3000, 6000))
+	# 		await page.wait_for_timeout(random.randint(2000, 3500))
 
-			if current_keyword:
-				current_count = len(videos_by_keyword[current_keyword])
+	# 		if current_keyword:
+	# 			current_count = len(videos_by_keyword[current_keyword])
 
-				# nếu không tăng video nữa → stop
-				if current_count == last_count:
-					print("🛑 No new videos, stop scrolling")
-					break
+	# 			# nếu không tăng video nữa → stop
+	# 			if current_count == last_count:
+	# 				print("🛑 No new videos, stop scrolling")
+	# 				break
 
-				last_count = current_count
+	# 			last_count = current_count
 
 	# ==========================
 	# RESPONSE HANDLER
@@ -500,7 +374,7 @@ async def crawl_tiktok_search(context, KEYWORDS, API_FILTERS):
 	# ==========================
 	# OPEN TIKTOK HOME
 	# ==========================
-	print("🚀 Open TikTok")
+	logger.info("🚀 Open TikTok")
 	await page.goto("https://www.tiktok.com", timeout=60000)
 	await page.wait_for_load_state("domcontentloaded")
 	await page.wait_for_timeout(5000)
@@ -511,7 +385,7 @@ async def crawl_tiktok_search(context, KEYWORDS, API_FILTERS):
 	for keyword in KEYWORDS:
 
 		print(f"\n==============================")
-		print(f"🔍 Search keyword: {keyword}")
+		logger.info(f"🔍 Search keyword: {keyword}")
 		print(f"==============================")
 
 		current_keyword = keyword
@@ -526,12 +400,16 @@ async def crawl_tiktok_search(context, KEYWORDS, API_FILTERS):
 		await page.goto(search_url, timeout=60000)
 		await page.wait_for_timeout(8000)
 
+		locator = page.locator("[id^='grid-item-container-']")
+
+		await human_scroll(page, locator, times=2)
+
 		# scroll để load thêm video
-		await human_scroll(page, max_scroll=8)
+		# await human_scroll(page, max_scroll=8)
 
 		videos = videos_by_keyword[keyword]
 
-		print(f"📦 Total Videos collected: {len(videos)}")
+		logger.info(f"📦 Total Videos collected: {len(videos)}")
 
 		# ==========================
 		# PARSE DATA
@@ -559,32 +437,30 @@ async def crawl_tiktok_search(context, KEYWORDS, API_FILTERS):
 				results.append(data)
 
 			except Exception as e:
-				print("❌ Parse error:", e)
+				logger.error(f"❌ Parse error: {e}")
 
-		print(f"✅ Parsed {len(results)} posts")
+		logger.info(f"✅ Parsed {len(results)} posts")
 
 		# ==========================
 		# POST TO ES
 		# ==========================
-		with open(f"xhr_calls_{keyword}.json", "w", encoding="utf-8") as f:
-			json.dump(results, f, ensure_ascii=False, indent=2)
 
 		if results:
 			try:
 				result = await postToESUnclassified(results)
-				print(f"🚀 Posted {len(results)} posts to ES")
-				print(result)
+				logger.info(f"🚀 Posted {len(results)} posts to ES: {result}")
 			except Exception as e:
 				print("❌ Error posting to ES:", e)
+				logger.error(f"❌ Error posting to ES: {e}")
 		else:
-			print("⚠️ No results to post")
+			logger.infologger.info("⚠️ No results to post")
 
 		# reset keyword để tránh API call trễ
 		current_keyword = None
 
 		await delay(10000, 20000)
 
-	print("\n🎉 Done crawling all keywords")
+	logger.info("\n🎉 Done crawling all keywords")
 	page.close()
 
 async def schedule():
