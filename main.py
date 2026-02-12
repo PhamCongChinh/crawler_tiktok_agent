@@ -111,7 +111,35 @@ async def run_with_gpm():
 		context = browser.contexts[0]
 		await context.route("**/*", block_resources)
 
-		page = await context.new_page()
+			# Config từ MongoDB
+		config = db.tiktok_bot_configs.find_one({"bot_name": f"{settings.BOT_NAME}"})
+		org_ids = config.get("org_id")
+		org_ids_int = [int(x) for x in org_ids]
+
+
+			# db = MongoDB.get_db()
+		keyword_col = db.keyword
+
+		logger.info(f"Collection: {keyword_col.name}")
+		logger.info(f"Total docs: {keyword_col.count_documents({})}")
+
+		docs = keyword_col.find({
+			"org_id": {"$in": org_ids_int}
+		})
+
+		keywords_count = [doc["keyword"] for doc in docs]
+		logger.info(f"Total keywords: {len(keywords_count)}")
+
+		keywords = []
+
+		for doc in docs:
+			doc["_id"] = str(doc["_id"])
+			keywords.append(doc["keyword"])
+			
+		await delay(1000, 2000)
+
+		await crawl_tiktok_search(context, keywords, API_FILTERS)
+
 
 		# items = []
 
@@ -128,39 +156,37 @@ async def run_with_gpm():
 
 		# page.on("response", handle_response)
 		
-		try:
-			await delay(800, 1500)
-			await page.goto("https://www.tiktok.com", timeout=60000)
-			logger.info("Đã vào TikTok bằng GPM profile")
+		# try:
+		# 	await delay(800, 1500)
+		# 	await page.goto("https://www.tiktok.com", timeout=60000)
+		# 	logger.info("Đã vào TikTok bằng GPM profile")
 
-			# Config từ MongoDB
-			config = db.tiktok_bot_configs.find_one({"bot_name": f"{settings.BOT_NAME}"})
-			org_ids = config.get("org_id")
-			org_ids_int = [int(x) for x in org_ids]
+		# 	# Config từ MongoDB
+		# 	config = db.tiktok_bot_configs.find_one({"bot_name": f"{settings.BOT_NAME}"})
+		# 	org_ids = config.get("org_id")
+		# 	org_ids_int = [int(x) for x in org_ids]
 
 
-			# db = MongoDB.get_db()
-			keyword_col = db.keyword
+		# 	# db = MongoDB.get_db()
+		# 	keyword_col = db.keyword
 
-			logger.info(f"Collection: {keyword_col.name}")
-			logger.info(f"Total docs: {keyword_col.count_documents({})}")
+		# 	logger.info(f"Collection: {keyword_col.name}")
+		# 	logger.info(f"Total docs: {keyword_col.count_documents({})}")
 
-			docs = keyword_col.find({
-				"org_id": {"$in": org_ids_int}
-			})
+		# 	docs = keyword_col.find({
+		# 		"org_id": {"$in": org_ids_int}
+		# 	})
 
-			keywords_count = [doc["keyword"] for doc in docs]
-			logger.info(f"Total keywords: {len(keywords_count)}")
+		# 	keywords_count = [doc["keyword"] for doc in docs]
+		# 	logger.info(f"Total keywords: {len(keywords_count)}")
 
-			keywords = []
+		# 	keywords = []
 
-			for doc in docs:
-				doc["_id"] = str(doc["_id"])
-				keywords.append(doc["keyword"])
+		# 	for doc in docs:
+		# 		doc["_id"] = str(doc["_id"])
+		# 		keywords.append(doc["keyword"])
 			
-			await delay(1000, 2000)
-
-			await crawl_tiktok_search(context, keywords, API_FILTERS)
+		# 	await delay(1000, 2000)
 
 			# search_btn = page.locator('button[data-e2e="nav-search"]')
 			# await search_btn.wait_for(state="visible", timeout=15000)
@@ -230,9 +256,9 @@ async def run_with_gpm():
 
 
 			# await CrawlerKeyword.crawler_keyword(context=context, page=page, keywords=keywords)
-		finally:
-			await page.close()
-			await browser.close()
+		# finally:
+			# await page.close()
+			# await browser.close()
 
 async def run_test():
 	async with async_playwright() as p:
@@ -559,6 +585,7 @@ async def crawl_tiktok_search(context, KEYWORDS, API_FILTERS):
 		await delay(10000, 20000)
 
 	print("\n🎉 Done crawling all keywords")
+	page.close()
 
 async def schedule():
 	MINUTE = settings.DELAY
