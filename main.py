@@ -434,14 +434,14 @@ async def crawl_tiktok_search(context, KEYWORDS, API_FILTERS):
 				results.append(data)
 
 			except Exception as e:
-				logger.error(f"❌ Parse error: {e}")
+				logger.error(f"Parse error: {e}")
 
 		logger.info(f"Parsed {len(results)} posts")
 
 		if results:
 			try:
 				result = await postToESUnclassified(results)
-				logger.info(f"Posted {len(results)} posts to API MASTER: {result}")
+				logger.info(f"Posted {len(results)} posts to API MASTER: {result.get('status')}")
 			except Exception as e:
 				logger.error(f"Error posting to API MASTER: {e}")
 		else:
@@ -449,9 +449,8 @@ async def crawl_tiktok_search(context, KEYWORDS, API_FILTERS):
 
 		# reset keyword để tránh API call trễ
 		current_keyword = None
-
-		wait_time = await delay(60000, 120000)
-		logger.info(f"⏳ Waiting {wait_time}ms before next keyword...")
+		logger.info(f"⏳ Waiting before next keyword...")
+		await delay(60000, 120000)
 
 	logger.info("\n🎉 Done crawling all keywords")
 	page.close()
