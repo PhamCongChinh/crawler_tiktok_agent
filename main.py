@@ -106,7 +106,7 @@ async def run_with_gpm():
 		browser = await p.chromium.connect_over_cdp(f"http://{debug_addr}")
 
 		if not browser.contexts:
-			raise Exception("❌ No browser context found from GPM")
+			raise Exception("No browser context found from GPM")
 
 		context = browser.contexts[0]
 		await context.route("**/*", block_resources)
@@ -383,7 +383,7 @@ async def crawl_tiktok_search(context, KEYWORDS, API_FILTERS):
 	# ==========================
 	for keyword in KEYWORDS:
 
-		logger.info(f"🔍 Search keyword: {keyword}")
+		logger.info(f"Search keyword: {keyword}")
 
 		current_keyword = keyword
 		videos_by_keyword[keyword] = []
@@ -406,7 +406,7 @@ async def crawl_tiktok_search(context, KEYWORDS, API_FILTERS):
 
 		videos = videos_by_keyword[keyword]
 
-		logger.info(f"📦 Total Videos collected: {len(videos)}")
+		logger.info(f"Total Videos collected: {len(videos)}")
 
 		# ==========================
 		# PARSE DATA
@@ -436,26 +436,22 @@ async def crawl_tiktok_search(context, KEYWORDS, API_FILTERS):
 			except Exception as e:
 				logger.error(f"❌ Parse error: {e}")
 
-		logger.info(f"✅ Parsed {len(results)} posts")
-
-		# ==========================
-		# POST TO ES
-		# ==========================
+		logger.info(f"Parsed {len(results)} posts")
 
 		if results:
 			try:
 				result = await postToESUnclassified(results)
-				logger.info(f"🚀 Posted {len(results)} posts to ES: {result}")
+				logger.info(f"Posted {len(results)} posts to API MASTER: {result}")
 			except Exception as e:
-				print("❌ Error posting to ES:", e)
-				logger.error(f"❌ Error posting to ES: {e}")
+				logger.error(f"Error posting to API MASTER: {e}")
 		else:
-			logger.infologger.info("⚠️ No results to post")
+			logger.info("No results to post")
 
 		# reset keyword để tránh API call trễ
 		current_keyword = None
 
-		await delay(60000, 120000)
+		wait_time = await delay(60000, 120000)
+		logger.info(f"⏳ Waiting {wait_time}ms before next keyword...")
 
 	logger.info("\n🎉 Done crawling all keywords")
 	page.close()
@@ -470,9 +466,9 @@ async def schedule():
 			else:
 				await run_with_gpm()
 
-			logger.info(f"=== Hoàn thành, chờ {MINUTE} phút ===")
+			logger.info(f"=== Run completed. Sleeping for {MINUTE} minutes ===")
 		except Exception as e:
-			logger.error(f"Lỗi trong run(): {e}")
+			logger.exception("Unhandled exception in run()")
 
 		await asyncio.sleep(INTERVAL)
 
