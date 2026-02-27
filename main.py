@@ -24,7 +24,7 @@ from src.config.settings import settings
 # PROFILE_ID = settings.PROFILE_ID
 
 TIKTOK_URL = "https://www.tiktok.com"
-KEYWORDS = ["Phường Ba Đình","Phường Bạch Mai"]
+KEYWORDS = ["Phường Tương Mai", "Xã Xuân Giang", "Hà Nội"]
 
 # API TikTok cần bắt
 # API_FILTERS = [
@@ -140,7 +140,7 @@ async def run_with_gpm():
 				keywords.append(doc["keyword"])
 
 			await delay(1000, 2000)
-			await crawl_tiktok_search(context, keywords, API_FILTERS)
+			await crawl_tiktok_search_1(context, keywords, API_FILTERS)
 
 	except Exception as e:
 		logger.exception(f"Error in run_with_gpm(): {e}")
@@ -222,7 +222,7 @@ async def run_test_1():
 		context = await browser.new_context(storage_state="tiktok_profile.json")
 
 		await context.route("**/*", block_resources)
-		await crawl_tiktok_search(context, KEYWORDS, API_FILTERS)
+		await crawl_tiktok_search_1(context, KEYWORDS, API_FILTERS)
 
 		# page = await context.new_page()
 		# # ======================
@@ -328,38 +328,25 @@ async def run_test_1():
 		# await human_delay(10000, 20000)
 
 
+async def random_view_video(page, locator):
+    count = await locator.count()
+    if count == 0:
+        return
+
+    if random.random() < 0.5:  # 50% khả năng click
+        index = random.randint(0, min(count - 1, 5))
+        await locator.nth(index).click()
+        await page.wait_for_timeout(random.randint(4000, 8000))
+        await page.go_back()
+        await page.wait_for_timeout(random.randint(2000, 4000))
+
 async def crawl_tiktok_search(context, KEYWORDS, API_FILTERS):
 
 	page = await context.new_page()
-	# ==========================
-	# XHR COLLECTOR
 	current_keyword = None
 	videos_by_keyword = defaultdict(list)
 	seen_ids_by_keyword = defaultdict(set)
 
-	# ==========================
-	# HUMAN SCROLL
-	# ==========================
-	# async def human_scroll(page, max_scroll=10):
-	# 	last_count = 0
-
-	# 	for i in range(max_scroll):
-	# 		await page.mouse.wheel(0, random.randint(3000, 6000))
-	# 		await page.wait_for_timeout(random.randint(2000, 3500))
-
-	# 		if current_keyword:
-	# 			current_count = len(videos_by_keyword[current_keyword])
-
-	# 			# nếu không tăng video nữa → stop
-	# 			if current_count == last_count:
-	# 				print("🛑 No new videos, stop scrolling")
-	# 				break
-
-	# 			last_count = current_count
-
-	# ==========================
-	# RESPONSE HANDLER
-	# ==========================
 	async def on_response(res):
 		nonlocal current_keyword
 
@@ -392,16 +379,10 @@ async def crawl_tiktok_search(context, KEYWORDS, API_FILTERS):
 
 	page.on("response", on_response)
 
-	# ==========================
-	# OPEN TIKTOK HOME
-	# ==========================
 	await page.goto("https://www.tiktok.com", timeout=60000)
 	await page.wait_for_load_state("domcontentloaded")
 	await page.wait_for_timeout(5000)
 
-	# ==========================
-	# KEYWORD LOOP
-	# ==========================
 	for keyword in KEYWORDS:
 
 		logger.info(f"Search keyword: {keyword}")
@@ -420,22 +401,26 @@ async def crawl_tiktok_search(context, KEYWORDS, API_FILTERS):
 
 		locator = page.locator("[id^='grid-item-container-']")
 
-		await human_scroll(page, locator, times=2)
+		await human_scroll(page, locator, times=random.randint(1, 4))
 
-		# scroll để load thêm video
-		# await human_scroll(page, max_scroll=8)
+		await random_view_video(page=page, locator=locator)
 
 		videos = videos_by_keyword[keyword]
 
 		logger.info(f"Total Videos collected: {len(videos)}")
 
-		# ==========================
-		# PARSE DATA
-		# ==========================
 		results = []
+
+		now_ts = int(time.time())
+		days_ago = now_ts - 7 * 24 * 60 * 60  # 7 ngày tính theo giây
 
 		for item in videos:
 			try:
+				pub_time = int(item.get("createTime", 0))
+
+				if pub_time < days_ago:
+					continue
+
 				video_info = {
 					"keyword": keyword,
 					"video_id": item.get("id"),
@@ -471,10 +456,150 @@ async def crawl_tiktok_search(context, KEYWORDS, API_FILTERS):
 		# reset keyword để tránh API call trễ
 		current_keyword = None
 		logger.info(f"⏳ Waiting before next keyword...")
+
 		await delay(60000, 120000)
 
 	logger.info("\n🎉 Done crawling all keywords")
 	await page.close()
+
+
+
+
+
+
+
+
+async def crawl_tiktok_search_1(context, KEYWORDS, API_FILTERS):
+
+    videos_by_keyword = defaultdict(list)
+    seen_ids_by_keyword = defaultdict(set)
+
+    BATCH_MIN = 5
+    BATCH_MAX = 10
+
+    i = 0
+    total = len(KEYWORDS)
+
+    while i < total:
+
+        batch_size = random.randint(BATCH_MIN, BATCH_MAX)
+        batch_keywords = KEYWORDS[i:i+batch_size]
+
+        logger.info(f"🚀 New session with {len(batch_keywords)} keywords")
+
+        page = await context.new_page()
+        current_keyword = None
+
+        async def on_response(res):
+            nonlocal current_keyword
+
+            if not current_keyword:
+                return
+
+            if any(api in res.url for api in API_FILTERS):
+                try:
+                    body = await res.json()
+                except:
+                    return
+
+                if not body:
+                    return
+
+                if body.get("status_code") == 0:
+                    items = body.get("item_list", [])
+
+                    for item in items:
+                        video_id = item.get("id")
+                        if not video_id:
+                            continue
+
+                        if video_id not in seen_ids_by_keyword[current_keyword]:
+                            seen_ids_by_keyword[current_keyword].add(video_id)
+                            videos_by_keyword[current_keyword].append(item)
+
+        page.on("response", on_response)
+
+        await page.goto("https://www.tiktok.com", timeout=60000)
+        await page.wait_for_load_state("domcontentloaded")
+        await page.wait_for_timeout(random.randint(4000, 7000))
+
+        for keyword in batch_keywords:
+
+            logger.info(f"Search keyword: {keyword}")
+
+            current_keyword = keyword
+            videos_by_keyword[keyword] = []
+            seen_ids_by_keyword[keyword] = set()
+
+            unix_time = int(time.time() * 1000)
+            encoded = urllib.parse.quote(keyword)
+            search_url = f"https://www.tiktok.com/search/video?q={encoded}&t={unix_time}"
+
+            await page.goto(search_url, timeout=60000)
+            await page.wait_for_timeout(random.randint(6000, 9000))
+
+            locator = page.locator("[id^='grid-item-container-']")
+
+            await human_scroll(page, locator, times=random.randint(1, 4))
+            await random_view_video(page, locator)
+
+            videos = videos_by_keyword[keyword]
+            logger.info(f"Total Videos collected: {len(videos)}")
+
+            results = []
+            now_ts = int(time.time())
+            days_ago = now_ts - 7 * 24 * 60 * 60
+
+            for item in videos:
+                try:
+                    pub_time = int(item.get("createTime", 0))
+                    if pub_time < days_ago:
+                        continue
+
+                    video_info = {
+                        "keyword": keyword,
+                        "video_id": item.get("id"),
+                        "description": item.get("desc"),
+                        "pub_time": pub_time,
+                        "unique_id": item.get("author", {}).get("uniqueId", ""),
+                        "auth_id": item.get("author", {}).get("id", 0),
+                        "auth_name": item.get("author", {}).get("nickname", ""),
+                        "comments": item.get("stats", {}).get("commentCount", 0),
+                        "shares": item.get("stats", {}).get("shareCount", 0),
+                        "reactions": item.get("stats", {}).get("diggCount", 0),
+                        "favors": item.get("stats", {}).get("collectCount", 0),
+                        "views": item.get("stats", {}).get("playCount", 0)
+                    }
+
+                    data = TiktokPost().new(video_info)
+                    results.append(data)
+
+                except Exception as e:
+                    logger.error(f"Parse error: {e}")
+
+            logger.info(f"Parsed {len(results)} posts")
+
+            if results:
+                try:
+                    result = await postToESUnclassified(results)
+                    logger.info(f"Posted {len(results)} posts to API MASTER: {result.get('status')}")
+                except Exception as e:
+                    logger.error(f"Error posting to API MASTER: {e}")
+
+            current_keyword = None
+            await asyncio.sleep(random.randint(60, 120))
+
+        logger.info("🛑 Closing page for rest period")
+        await page.close()
+
+        rest_time = random.randint(180, 360)
+        logger.info(f"😴 Resting {rest_time}s before next session")
+        await asyncio.sleep(rest_time)
+
+        i += batch_size
+
+    logger.info("🎉 Done crawling all keywords")
+
 
 async def schedule():
 	MINUTE = settings.DELAY
