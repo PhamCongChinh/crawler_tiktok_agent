@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, time as dtime, timedelta
 import random
 import json
 import time
@@ -601,11 +601,76 @@ async def crawl_tiktok_search_1(context, KEYWORDS, API_FILTERS):
     logger.info("🎉 Done crawling all keywords")
 
 
+# lưu cấu hình ngủ trong ngày
+sleep_config = {
+    "sleep_start": None,
+    "sleep_end": None,
+    "date": None
+}
+
+def generate_today_sleep_time():
+    today = datetime.now().date()
+
+    # random giờ ngủ 23:00 – 00:30
+    sleep_hour = random.choice([23, 0])
+    sleep_minute = random.randint(0, 59) if sleep_hour == 23 else random.randint(0, 30)
+
+    # random giờ thức 05:30 – 06:30
+    wake_hour = 5 if random.random() < 0.5 else 6
+    wake_minute = random.randint(30, 59) if wake_hour == 5 else random.randint(0, 30)
+
+    sleep_start = dtime(sleep_hour, sleep_minute)
+    sleep_end = dtime(wake_hour, wake_minute)
+
+    sleep_config["sleep_start"] = sleep_start
+    sleep_config["sleep_end"] = sleep_end
+    sleep_config["date"] = today
+
+    logger.info(f"🌙 Sleep window today: {sleep_start} → {sleep_end}")
+
+def is_sleep_time():
+    now = datetime.now()
+
+    if sleep_config["date"] != now.date():
+        generate_today_sleep_time()
+
+    start = sleep_config["sleep_start"]
+    end = sleep_config["sleep_end"]
+    current = now.time()
+
+    # xử lý trường hợp ngủ qua ngày (23h → 6h)
+    if start > end:
+        return current >= start or current < end
+    else:
+        return start <= current < end
+
+async def sleep_until_wakeup():
+    now = datetime.now()
+    wake_time = sleep_config["sleep_end"]
+
+    wake_datetime = now.replace(
+        hour=wake_time.hour,
+        minute=wake_time.minute,
+        second=0,
+        microsecond=0
+    )
+
+    if now.time() >= wake_time:
+        wake_datetime += timedelta(days=1)
+
+    seconds = (wake_datetime - now).total_seconds()
+    logger.info(f"😴 Sleeping {seconds/3600:.2f} hours...")
+    await asyncio.sleep(seconds)
+
 async def schedule():
 	MINUTE = settings.DELAY
 	INTERVAL = MINUTE * 60
 	while True:
 		try:
+			if is_sleep_time():
+				await sleep_until_wakeup()
+				continue
+			
 			if settings.DEBUG:
 				await run_test_1()
 			else:
