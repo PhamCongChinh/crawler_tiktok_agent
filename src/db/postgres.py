@@ -4,6 +4,11 @@ from datetime import datetime, timedelta, timezone
 
 VN_TZ = timezone(timedelta(hours=7))
 
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
 class PostgresDB:
     pool = None
     def __init__(self):
@@ -12,11 +17,11 @@ class PostgresDB:
     async def connect(self):
         if self.pool is None:
             self.pool = await asyncpg.create_pool(
-                user="anhquan",
-                password="123456",
-                database="for_demo",
-                host="222.254.14.6",
-                port=5433,
+                user=os.getenv("POSTGRES_USER", "postgres"),
+                password=os.getenv("POSTGRES_PASSWORD", "postgres"),
+                database=os.getenv("POSTGRES_DB", "postgres"),
+                host=os.getenv("POSTGRES_HOST", "localhost"),
+                port=int(os.getenv("POSTGRES_PORT", 5432)),
                 min_size=10,
                 max_size=50,   # tăng nếu crawl mạnh
                 command_timeout=60
@@ -40,7 +45,7 @@ class PostgresDB:
                 AND pub_time < $2
                 ORDER BY id DESC
                 LIMIT $3
-            """, 1709289214, end, limit)
+            """, 1774762609, end, limit)
             return [dict(row) for row in rows]
         
     def get_day_range(self, ts: int):

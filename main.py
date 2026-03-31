@@ -6,7 +6,8 @@ import time
 import requests
 from playwright.async_api import async_playwright
 import urllib
-from src.api import postToESUnclassified
+from src.parsers.comment_parser import TiktokComment
+from src.api import postToESClassified, postToESUnclassified
 from src.parsers.video_parser import TiktokPost
 from src.db.mongo import MongoDB
 from src.config.logging import setup_logging
@@ -115,120 +116,133 @@ async def run_with_gpm():
 		except Exception as e:
 			logger.error(f"Failed to stop GPM profile: {e}")
 
-async def run_test():
+async def run_test(bot_type: str):
 	async with async_playwright() as p:
 		chrome_path = "C:/Program Files/Google/Chrome/Application/chrome.exe"  # đường dẫn Chrome trên Windows
 		browser = await p.chromium.launch(
 			headless=False,
 			executable_path=chrome_path,
-			args=["--disable-blink-features=AutomationControlled"]
+			args=[
+				"--disable-blink-features=AutomationControlled"
+			]
 		)
 		context = await browser.new_context(storage_state="tiktok_profile.json")
 
-		await crawl_tiktok_comment(context=context)
-
-		# await crawl_tiktok_search(browser, context, KEYWORDS, API_FILTERS)
+		if (bot_type == "comment"):
+			logger.info(f"Crawl COMMENT")
+			await crawl_tiktok_comment(context=context)
+		elif (bot_type == "video"):
+			logger.info(f"Crawl VIDEO")
+			await crawl_tiktok_search(browser, context, KEYWORDS, API_FILTERS)
+		else:
+			await browser.close()
 
 async def crawl_tiktok_comment(context):
 	page = await context.new_page()
 	await postgresDB.connect()
-	posts = await postgresDB.fetch_posts(5)
+	posts = await postgresDB.fetch_posts(1)
 	for i, row in enumerate(posts, 1):
 		unix_time = int(time.time() * 1000)
-		print(row.get("url"))
 		url = row.get("url")
+		org_id = row.get("org_id")
+
+		url = f"https://www.tiktok.com/@angiang_new/video/7623022972009205000"
+
+		print(url)
+		print(org_id)
 
 		await page.goto(url, wait_until="domcontentloaded")
-		await page.wait_for_timeout(random.randint(60, 90))
-		comments_by_video = {}
+		await page.wait_for_timeout(5000)
+		# await page.wait_for_timeout(random.randint(60, 90))
+
+		comments_by_video = []
+		pending_tasks = []  # ✅ Track các task đang chạy
 		async def on_response(res):
-			if any(api in res.url for api in API_COMMENT):
-				try:
-					body = await res.json()
-					print(body)
-				except:
-					return
-				if not body:
-					return
+			try:
+				if any(api in res.url for api in API_COMMENT):
+					try:
+						body = await res.json()
+					except:
+						return
+					if not body:
+						return
 
-				comments = body.get("comments", [])
+					comments = body.get("comments", [])
 
-				# lấy video_id từ request URL
-				import re
-				# match = re.search(r"aweme_id=(\d+)", url)
-				match = re.search(r"/video/(\d+)", url)
-				video_id = match.group(1) if match else None
+					request_url = res.url
+					if not isinstance(request_url, str):
+						return
 
-				if not video_id:
-					return
-				
-				if video_id not in comments_by_video:
-					comments_by_video[video_id] = []
+					for c in comments:
+						share_info = c.get("share_info") or {}
+						user_info = c.get("user") or {}
+						avatar = user_info.get("avatar_thumb", {}).get("url_list", [])
 
-				for c in comments:
-					comment_id = c.get("cid")
-					text = c.get("text")
-					aweme_id = c.get("aweme_id") # subjectid
-					create_time = c.get("create_time") #pubtime
-					digg_count = c.get("digg_count")
-					title = c.get("share_info").get("title")
-					description = c.get("share_info").get("desc")
-					content = c.get("share_info").get("desc")
-					url = c.get("share_info").get("url")
-					auth_id = c.get("share_info").get("uid")
-					auth_name = c.get("share_info").get("nickname")
-					unique_id = c.get("share_info").get("unique_id")
+						comment_id = c.get("cid")
+						pub_time = c.get("create_time")
+						title = share_info.get("title")
+						description = share_info.get("desc")
+						content = c.get("text")
+						#url = share_info.get("url")
+						media = avatar[0] if avatar else None
+						reactions = c.get("digg_count")
+						auth_id = user_info.get("uid")
+						auth_name = user_info.get("nickname")
+						unique_id = user_info.get("unique_id")
+						aweme_id = c.get("aweme_id")
 
+						comments_data = {
+							"org_id": org_id,
+							"pub_time": pub_time,
+							"comment_id": comment_id,
+							"title": title,
+							"description": description,
+							"subject_id": comment_id,
+							"content": content,
+							"url": url,
+							"media": media,
+							"reaction": reactions,
+							"auth_id": auth_id,
+							"auth_name": auth_name,
+							"unique_id": unique_id,
+							"video_id": aweme_id
+						}
 
+						data = TiktokComment.new(comments_data)
+						comments_by_video.append(data)
 
-					comments_by_video[video_id].append({
-						"comment_id": comment_id,
-						"text": text
-					})
+					print(f"💬 TOTAL COMMENTS FETCHED: {len(comments)}")
+					print("=" * 50)
+			except Exception as e:
+				print("❌ ERROR:", e)
 
+		def handle_response(res):
+			task = asyncio.create_task(on_response(res))
+			pending_tasks.append(task)  # ✅ Lưu lại task
 
-				print(f"\n🎬 VIDEO ID: {video_id}")
-				print(f"💬 TOTAL COMMENTS FETCHED: {len(comments)}")
-				print("=" * 50)
-
-				for i, c in enumerate(comments, 1):
-					comment_id = c.get("cid")
-					text = c.get("text")
-					user = c.get("user", {}).get("nickname")
-
-					# comments_by_video[]
-
-					print(f"{i}. 👤 {user}")
-					print(f"   💬 {text}")
-					print(f"   🆔 {comment_id}")
-					print("-" * 50)
-
-				# if not video_id:
-				# 	return
-
-				# if video_id not in comments_by_video:
-				# 	comments_by_video[video_id] = []
-
-				# for c in comments:
-				# 	comment_id = c.get("cid")
-				# 	text = c.get("text")
-
-				# 	comments_by_video[video_id].append({
-				# 		"comment_id": comment_id,
-				# 		"text": text
-				# 	})
-
-		
-		page.on("response", on_response)
-		await asyncio.sleep(random.randint(10, 20))
+		page.on("response", handle_response)
+		await asyncio.sleep(random.randint(10, 30))
 		await close_popup_if_any(page)
-		await asyncio.sleep(random.randint(10, 20))
+		await asyncio.sleep(random.randint(5, 10))
 		await page.click('[data-e2e="comment-icon"]')
+		await asyncio.sleep(random.randint(5, 10))
 
-		with open("comments.json", "w", encoding="utf-8") as f:
-			json.dump(comments_by_video, f, ensure_ascii=False, indent=2)
+		# ✅ Chờ tất cả response handler xử lý xong TRƯỚC khi ghi file
+		if pending_tasks:
+			await asyncio.gather(*pending_tasks, return_exceptions=True)
 
-		await asyncio.sleep(random.randint(60, 90))
+        # ✅ Ghi file SAU KHI đã thu thập đủ data
+		# with open("results.json", "w", encoding="utf-8") as f:
+		# 	json.dump(comments_by_video, f, indent=4, ensure_ascii=False)
+
+		if comments_by_video:
+			try:
+				result = await postToESClassified(comments_by_video)
+				logger.info(f"[] Posted {len(comments_by_video)} posts to API MASTER: {result.get('status')}")
+			except Exception as e:
+				logger.error(f"[] Error posting to API MASTER: {e}")
+
+		page.remove_listener("response", handle_response)  # ✅ Dọn dẹp listener
 
 	await postgresDB.close()
 	rest_time = random.randint(600, 900)
@@ -388,6 +402,7 @@ async def schedule():
 		raise ValueError("Bot config not found")
 	
 	sleep = config.get("sleep", 5)
+	bot_type = config.get("bot_type", "")
 	logger.info(f"Sleep config in database: {sleep} minutes")
 
 	INTERVAL = sleep * 60
@@ -397,9 +412,11 @@ async def schedule():
 			# if sleep_manager.is_sleep_time():
 			# 	await sleep_manager.sleep_until_wakeup()
 			# 	continue
+
+			logger.info(f"Crawl with {bot_type}")
 			
 			if settings.DEBUG:
-				await run_test()
+				await run_test(bot_type)
 			else:
 				await run_with_gpm()
 
