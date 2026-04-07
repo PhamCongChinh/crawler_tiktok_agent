@@ -6,6 +6,7 @@ import time
 import requests
 from playwright.async_api import async_playwright
 import urllib
+
 from src.parsers.comment_parser import TiktokComment
 from src.api import postToESClassified, postToESUnclassified
 from src.parsers.video_parser import TiktokPost
@@ -21,6 +22,7 @@ from src.utils.scroll_utils import human_scroll
 from src.utils.delay_utils import delay
 from src.utils.browser_actions import random_view_video
 from src.utils.sleep_manager import SleepManager
+from src.heartbeat import heartbeat_loop
 
 
 setup_logging()
@@ -409,9 +411,9 @@ async def schedule():
 	while True:
 		try:
 			sleep_manager = SleepManager(logger)
-			# if sleep_manager.is_sleep_time():
-			# 	await sleep_manager.sleep_until_wakeup()
-			# 	continue
+			if sleep_manager.is_sleep_time():
+				await sleep_manager.sleep_until_wakeup()
+				continue
 
 			logger.info(f"Crawl with {bot_type}")
 			
@@ -427,4 +429,9 @@ async def schedule():
 		await asyncio.sleep(INTERVAL)
 
 if __name__ == "__main__":
-	asyncio.run(schedule())
+	async def main():
+		await asyncio.gather(
+			schedule(),
+			heartbeat_loop()
+		)
+	asyncio.run(main())
