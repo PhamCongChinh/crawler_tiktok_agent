@@ -49,7 +49,7 @@ bot_config = db.tiktok_bot_configs
 
 now = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh"))
 
-async def run_with_gpm():
+async def run_with_gpm(bot_type: str):
 	
 	GPM_API = bot_config.find_one({"bot_name": f"{settings.BOT_NAME}"}).get("gpm_api")
 	PROFILE_ID = bot_config.find_one({"bot_name": f"{settings.BOT_NAME}"}).get("profile_id")
@@ -98,7 +98,17 @@ async def run_with_gpm():
 				keywords.append(doc["keyword"])
 
 			await delay(1000, 2000)
-			await crawl_tiktok_search(browser, context, keywords, API_FILTERS)
+
+			# await crawl_tiktok_search(browser, context, keywords, API_FILTERS)
+
+			if (bot_type == "comment"):
+				logger.info(f"Crawl COMMENT")
+				await crawl_tiktok_comment(context=context)
+			elif (bot_type == "video"):
+				logger.info(f"Crawl VIDEO")
+				await crawl_tiktok_search(browser, context, keywords, API_FILTERS)
+			else:
+				await browser.close()
 
 	except Exception as e:
 		logger.exception(f"Error in run_with_gpm(): {e}")
@@ -420,7 +430,7 @@ async def schedule():
 			if settings.DEBUG:
 				await run_test(bot_type)
 			else:
-				await run_with_gpm()
+				await run_with_gpm(bot_type)
 
 			logger.info(f"=== Run completed. Sleeping for {sleep} minutes ===")
 		except Exception as e:
