@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 BOT_ID = socket.gethostname()
 BOT_TYPE = "tiktok"  # hoặc lấy từ config
 
-API_HEALTH = "http://192.168.1.28:4200/health/heartbeat"
+API_HEALTH = "http://192.168.1.28:4420/api/v1/check/heartbeat"
 
 async def heartbeat_loop():
     while True:
