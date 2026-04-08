@@ -49,10 +49,10 @@ bot_config = db.tiktok_bot_configs
 
 now = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh"))
 
-async def run_with_gpm(bot_type: str):
+async def run_with_gpm(bot_type: str, bot_name: str):
 	
-	GPM_API = bot_config.find_one({"bot_name": f"{settings.BOT_NAME}"}).get("gpm_api")
-	PROFILE_ID = bot_config.find_one({"bot_name": f"{settings.BOT_NAME}"}).get("profile_id")
+	GPM_API = bot_config.find_one({"bot_name": f"{bot_name}"}).get("gpm_api")
+	PROFILE_ID = bot_config.find_one({"bot_name": f"{bot_name}"}).get("profile_id")
 
 	# ===== START PROFILE =====
 	resp = requests.get(f"{GPM_API}/profiles/start/{PROFILE_ID}")
@@ -88,8 +88,8 @@ async def run_with_gpm(bot_type: str):
 				"org_id": {"$in": org_ids_int}
 			}))
 
-			logger.info(f"Collection: {keyword_col.name}")
-			logger.info(f"Total keywords: {len(docs)}")
+			logger.info(f"[{bot_name}] Collection: {keyword_col.name}")
+			logger.info(f"[{bot_name}] Total keywords: {len(docs)}")
 
 			keywords = []
 
@@ -99,7 +99,7 @@ async def run_with_gpm(bot_type: str):
 
 			await delay(1000, 2000)
 
-			await crawl_tiktok_search(browser, context, keywords, API_FILTERS)
+			await crawl_tiktok_search(browser, context, keywords, API_FILTERS, bot_name)
 
 			# if (bot_type == "comment"):
 			# 	logger.info(f"Crawl COMMENT")
@@ -128,7 +128,7 @@ async def run_with_gpm(bot_type: str):
 		except Exception as e:
 			logger.error(f"Failed to stop GPM profile: {e}")
 
-async def run_test(bot_type: str):
+async def run_test(bot_type: str, bot_name: str):
 	async with async_playwright() as p:
 		chrome_path = "C:/Program Files/Google/Chrome/Application/chrome.exe"  # đường dẫn Chrome trên Windows
 		browser = await p.chromium.launch(
@@ -145,7 +145,7 @@ async def run_test(bot_type: str):
 			# await crawl_tiktok_comment(context=context)
 		elif (bot_type == "video"):
 			logger.info(f"Crawl VIDEO")
-			await crawl_tiktok_search(browser, context, KEYWORDS, API_FILTERS)
+			await crawl_tiktok_search(browser, context, KEYWORDS, API_FILTERS, bot_name)
 		else:
 			await browser.close()
 
@@ -267,7 +267,7 @@ async def run_test(bot_type: str):
 #     except:
 #         pass
 
-async def crawl_tiktok_search(browser, context, KEYWORDS, API_FILTERS):
+async def crawl_tiktok_search(browser, context, KEYWORDS, API_FILTERS, bot_name):
 
 	videos_by_keyword = defaultdict(list)
 	seen_ids_by_keyword = defaultdict(set)
@@ -283,7 +283,7 @@ async def crawl_tiktok_search(browser, context, KEYWORDS, API_FILTERS):
 		batch_size = random.randint(BATCH_MIN, BATCH_MAX)
 		batch_keywords = KEYWORDS[i:i+batch_size]
 
-		logger.info(f"🚀 New session with {len(batch_keywords)} keywords")
+		logger.info(f"[{bot_name}] 🚀 New session with {len(batch_keywords)} keywords")
 
 		page = await context.new_page()
 		current_keyword = None
@@ -386,21 +386,21 @@ async def crawl_tiktok_search(browser, context, KEYWORDS, API_FILTERS):
 			if results:
 				try:
 					result = await postToESUnclassified(results)
-					logger.info(f"[{keyword}] Posted {len(results)} posts to API MASTER: {result.get('status')}")
+					logger.info(f"[{bot_name}] [{keyword}] Posted {len(results)} posts to API MASTER: {result.get('status')}")
 				except Exception as e:
-					logger.error(f"[{keyword}] Error posting to API MASTER: {e}")
+					logger.error(f"[{bot_name}] [{keyword}] Error posting to API MASTER: {e}")
 
 			current_keyword = None
 			time_sleep = random.randint(60, 120)
-			logger.info(f"Waiting {time_sleep} seconds for the next keyword ...")
+			logger.info(f"[{bot_name}] Waiting {time_sleep} seconds for the next keyword ...")
 			await asyncio.sleep(time_sleep)
 
-		logger.info(f"[{current_keyword}] 🛑 Closing page for rest period")
+		logger.info(f"[{bot_name}] [{current_keyword}] 🛑 Closing page for rest period")
 
 		await page.close()
 
 		rest_time = random.randint(600, 900)
-		logger.info(f"😴 Resting {rest_time}s before next session")
+		logger.info(f"[{bot_name}] 😴 Resting {rest_time}s before next session")
 		await asyncio.sleep(rest_time)
 
 		i += batch_size
@@ -408,14 +408,15 @@ async def crawl_tiktok_search(browser, context, KEYWORDS, API_FILTERS):
 	logger.info("🎉 Done crawling all keywords")
 
 async def schedule():
-	config = db.tiktok_bot_configs.find_one({"bot_name": settings.BOT_NAME})
+	bot_name = settings.BOT_NAME
+	config = db.tiktok_bot_configs.find_one({"bot_name": bot_name})
 
 	if not config:
 		raise ValueError("Bot config not found")
 	
 	sleep = config.get("sleep", 5)
 	bot_type = config.get("bot_type", "")
-	logger.info(f"Sleep config in database: {sleep} minutes")
+	logger.info(f"[{bot_name}] Sleep config in database: {sleep} minutes")
 
 	INTERVAL = sleep * 60
 	while True:
@@ -425,16 +426,16 @@ async def schedule():
 				await sleep_manager.sleep_until_wakeup()
 				continue
 
-			logger.info(f"Crawl with {bot_type}")
+			logger.info(f"[{bot_name}] Crawl with {bot_type}")
 			
 			if settings.DEBUG:
-				await run_test(bot_type)
+				await run_test(bot_type, bot_name)
 			else:
-				await run_with_gpm(bot_type)
+				await run_with_gpm(bot_type, bot_name)
 
-			logger.info(f"=== Run completed. Sleeping for {sleep} minutes ===")
+			logger.info(f"[{bot_name}]=== Run completed. Sleeping for {sleep} minutes ===")
 		except Exception as e:
-			logger.exception(f"Unhandled exception in run(): {e}")
+			logger.exception(f"[{bot_name}] Unhandled exception in run(): {e}")
 
 		await asyncio.sleep(INTERVAL)
 
