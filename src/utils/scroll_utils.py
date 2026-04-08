@@ -18,8 +18,16 @@ async def human_scroll(page, locator, times: int = 1):
 			random.randint(200, 500)
 		)
 
-		# Scroll tới item cuối
-		await locator.nth(count - 1).scroll_into_view_if_needed()
+		count = await locator.count()
+
+		if count > 0:
+			try:
+				index = min(count - 1, 10)  # tránh index quá xa
+				await locator.nth(index).scroll_into_view_if_needed(timeout=3000)
+			except Exception:
+				await page.mouse.wheel(0, random.randint(400, 800))
+		else:
+			await page.mouse.wheel(0, random.randint(400, 800))
 
 		# dừng xem ngắn
 		await page.wait_for_timeout(random.randint(800, 1500))
