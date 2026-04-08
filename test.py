@@ -100,10 +100,6 @@ async def crawl_search(keyword: str):
 		# await browser.close()
 		return items
 
-
-
-
-
 async def main():
 	data = await crawl_search("Hà nội")
 	print(f"✅ Got {len(data)} items")

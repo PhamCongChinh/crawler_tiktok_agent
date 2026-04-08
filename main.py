@@ -407,12 +407,7 @@ async def crawl_tiktok_search(browser, context, KEYWORDS, API_FILTERS, bot_name)
 
 	logger.info("🎉 Done crawling all keywords")
 
-async def schedule():
-	bot_name = settings.BOT_NAME
-	config = db.tiktok_bot_configs.find_one({"bot_name": bot_name})
-
-	if not config:
-		raise ValueError("Bot config not found")
+async def schedule(config: any):
 	
 	sleep = config.get("sleep", 5)
 	bot_type = config.get("bot_type", "")
@@ -440,9 +435,14 @@ async def schedule():
 		await asyncio.sleep(INTERVAL)
 
 if __name__ == "__main__":
+	bot_name = settings.BOT_NAME
+	config = db.tiktok_bot_configs.find_one({"bot_name": bot_name})
+	if not config:
+		raise ValueError("Bot config not found")
+	
 	async def main():
 		await asyncio.gather(
-			schedule(),
-			heartbeat_loop()
+			schedule(config),
+			heartbeat_loop(config)
 		)
 	asyncio.run(main())
