@@ -20,7 +20,7 @@ async def heartbeat_loop():
                     "bot_id": BOT_ID,
                     "bot_name": BOT_NAME,
                     "bot_type": BOT_TYPE,
-                    "records": 0
+                    "records": 10
                 })
         except Exception as e:
             logger.error(f"Heartbeat error: {e}")
