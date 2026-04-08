@@ -6,7 +6,8 @@ from src.config.logging import setup_logging
 setup_logging()
 logger = logging.getLogger(__name__)
 
-BOT_ID = socket.gethostname()
+BOT_ID = "bot-tiktok-1"
+BOT_NAME = "tiktok-hn1"
 BOT_TYPE = "tiktok"  # hoặc lấy từ config
 
 API_HEALTH = "http://192.168.1.28:4420/api/v1/check/heartbeat"
@@ -17,6 +18,7 @@ async def heartbeat_loop():
             async with httpx.AsyncClient(timeout=5) as client:
                 await client.post(API_HEALTH, json={
                     "bot_id": BOT_ID,
+                    "bot_name": BOT_NAME,
                     "bot_type": BOT_TYPE,
                     "records": 0
                 })
