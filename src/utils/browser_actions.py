@@ -56,16 +56,25 @@ async def random_view_video(
             await page.mouse.move(x, y, steps=random.randint(5, 15))
             await page.wait_for_timeout(random.randint(200, 600))
 
-    # Hover
-    await video.hover()
+        # Hover trực tiếp bằng mouse.move thay vì video.hover() để tránh bị chặn bởi sticky tab
+        await page.mouse.move(start_x, start_y, steps=random.randint(10, 20))
+    else:
+        # Fallback: dùng hover với force nếu không lấy được bounding box
+        await video.hover(force=True)
+
     await page.wait_for_timeout(random.randint(1000, 2500))
 
     # 30% khả năng chỉ hover không click
     if random.random() < skip_click_probability:
         return
 
-    # Click
-    await video.click()
+    # Click trực tiếp bằng tọa độ để tránh bị chặn bởi sticky tab
+    if box:
+        click_x = box["x"] + random.randint(10, int(box["width"] - 10))
+        click_y = box["y"] + random.randint(10, int(box["height"] - 10))
+        await page.mouse.click(click_x, click_y)
+    else:
+        await video.click(force=True)
 
     # Xem video
     watch_time = random.randint(*watch_time_range)
