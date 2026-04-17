@@ -199,8 +199,15 @@ async def crawl_tiktok_search(browser, context, KEYWORDS, API_FILTERS, bot_name)
 
 		page.on("response", on_response)
 
-		await page.goto("https://www.tiktok.com", wait_until="domcontentloaded")
-		await page.wait_for_load_state("domcontentloaded")
+		try:
+			await page.goto("https://www.tiktok.com", wait_until="domcontentloaded", timeout=60000)
+			await page.wait_for_load_state("domcontentloaded")
+		except Exception as e:
+			logger.error(f"[{bot_name}] Failed to load tiktok.com homepage: {e}")
+			await page.close()
+			await asyncio.sleep(random.randint(30, 60))
+			i += batch_size
+			continue
 		await page.wait_for_timeout(random.randint(4000, 7000))
 
 		await page.mouse.move(
@@ -223,7 +230,25 @@ async def crawl_tiktok_search(browser, context, KEYWORDS, API_FILTERS, bot_name)
 			encoded = urllib.parse.quote(keyword)
 			search_url = f"https://www.tiktok.com/search/video?q={encoded}&t={unix_time}"
 
-			await page.goto(search_url, wait_until="domcontentloaded")
+			# Retry goto với timeout cao hơn
+			MAX_RETRIES = 3
+			goto_success = False
+			for attempt in range(1, MAX_RETRIES + 1):
+				try:
+					await page.goto(search_url, wait_until="domcontentloaded", timeout=60000)
+					goto_success = True
+					break
+				except Exception as e:
+					logger.warning(f"[{bot_name}] [{keyword}] goto attempt {attempt}/{MAX_RETRIES} failed: {e}")
+					if attempt < MAX_RETRIES:
+						await asyncio.sleep(random.randint(5, 10))
+					else:
+						logger.error(f"[{bot_name}] [{keyword}] All goto attempts failed, skipping keyword")
+
+			if not goto_success:
+				current_keyword = None
+				continue
+
 			await page.wait_for_timeout(random.randint(6000, 9000))
 
 			locator = page.locator("[id^='grid-item-container-']")
