@@ -16,8 +16,6 @@ from src.config.settings import settings
 setup_logging()
 logger = logging.getLogger(__name__)
 
-KEYWORDS = ["Xã Xuân Giang", "Hà Nội"]  # fallback cho run_test
-
 db         = MongoDB.get_db()
 bot_config = db.tiktok_bot_configs
 
@@ -65,18 +63,6 @@ async def run_with_gpm(bot_type: str, bot_name: str):
 			logger.error(f"[{bot_name}] Failed to stop GPM profile: {e}")
 
 
-async def run_test(bot_type: str, bot_name: str):
-	async with async_playwright() as p:
-		browser = await p.chromium.launch(
-			headless=False,
-			executable_path="C:/Program Files/Google/Chrome/Application/chrome.exe",
-			args=["--disable-blink-features=AutomationControlled"],
-		)
-		context = await browser.new_context(storage_state="tiktok_profile.json")
-		await crawl_tiktok_search(context, KEYWORDS, bot_name)
-		await browser.close()
-
-
 async def schedule(config: dict, bot_name: str):
 	sleep    = config.get("sleep", 5)
 	bot_type = config.get("bot_type", "")
@@ -91,10 +77,7 @@ async def schedule(config: dict, bot_name: str):
 				continue
 
 			logger.info(f"[{bot_name}] Starting crawl ({bot_type})")
-			if settings.DEBUG:
-				await run_test(bot_type, bot_name)
-			else:
-				await run_with_gpm(bot_type, bot_name)
+			await run_with_gpm(bot_type, bot_name)
 
 			logger.info(f"[{bot_name}] Run completed. Sleeping {sleep} minutes...")
 		except Exception as e:
