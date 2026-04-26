@@ -212,11 +212,11 @@ async def crawl_tiktok_search(browser, context, KEYWORDS, API_FILTERS, bot_name)
 				current_keyword = None
 				continue
 
-			await page.wait_for_timeout(random.randint(6000, 9000))
+			await page.wait_for_timeout(random.randint(3000, 5000))
 
 			locator = page.locator("[id^='grid-item-container-']")
 			await human_scroll(page, locator, times=random.randint(1, 4))
-			await random_view_video(page)
+			await random_view_video(page, watch_time_range=(5000, 12000))
 
 			videos = videos_by_keyword[keyword]
 			logger.info(f"[{bot_name}] [{keyword}] Total videos collected: {len(videos)}")
@@ -257,14 +257,14 @@ async def crawl_tiktok_search(browser, context, KEYWORDS, API_FILTERS, bot_name)
 					logger.error(f"[{bot_name}] [{keyword}] Error posting to API MASTER: {e}")
 
 			current_keyword = None
-			time_sleep = random.randint(60, 120)
+			time_sleep = random.randint(60, 90)
 			logger.info(f"[{bot_name}] Waiting {time_sleep}s for the next keyword ...")
 			await asyncio.sleep(time_sleep)
 
 		logger.info(f"[{bot_name}] 🛑 Closing page for rest period")
 		await page.close()
 
-		rest_time = random.randint(600, 900)
+		rest_time = random.randint(180, 300)
 		logger.info(f"[{bot_name}] 😴 Resting {rest_time}s before next session")
 		await asyncio.sleep(rest_time)
 
