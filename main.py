@@ -19,7 +19,6 @@ from src.utils.scroll_utils import human_scroll
 from src.utils.delay_utils import delay
 from src.utils.browser_actions import random_view_video
 from src.utils.sleep_manager import SleepManager
-from src.heartbeat import heartbeat_loop
 from src.config.settings import settings
 
 
@@ -308,10 +307,4 @@ if __name__ == "__main__":
 	if not config:
 		raise ValueError("Bot config not found")
 
-	async def main():
-		await asyncio.gather(
-			schedule(config, bot_name),
-			heartbeat_loop(config)
-		)
-
-	asyncio.run(main())
+	asyncio.run(schedule(config, bot_name))
